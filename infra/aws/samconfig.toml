@@ -1,0 +1,14 @@
+# SAM CLI configuration for PetroSim deployment
+# Usage: cd infra/aws && sam build && sam deploy
+
+version = 0.1
+
+[default.build.parameters]
+use_container = true
+
+[default.deploy.parameters]
+stack_name = "petrosim"
+region = "eu-west-3"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

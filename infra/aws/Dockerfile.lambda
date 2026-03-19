@@ -1,0 +1,19 @@
+# Dockerfile for AWS Lambda deployment (FastAPI + Mangum)
+# Uses AWS Lambda Python runtime base image for best cold-start performance
+
+FROM public.ecr.aws/lambda/python:3.12
+
+# Copy requirements and install dependencies
+COPY apps/api/requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt mangum
+
+# Copy application code
+COPY apps/api/app/ ${LAMBDA_TASK_ROOT}/app/
+COPY apps/api/scripts/ ${LAMBDA_TASK_ROOT}/scripts/
+COPY data/seed/ ${LAMBDA_TASK_ROOT}/data/seed/
+
+# Copy the Lambda handler
+COPY infra/aws/lambda_handler.py ${LAMBDA_TASK_ROOT}/
+
+# Set the handler
+CMD ["lambda_handler.handler"]

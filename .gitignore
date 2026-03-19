@@ -48,5 +48,8 @@ htmlcov/
 .pytest_cache/
 .hypothesis/
 
+# AWS SAM
+.aws-sam/
+
 # Build
 *.tsbuildinfo

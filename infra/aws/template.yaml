@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: PetroSim — Serverless (Lambda + S3 + CloudFront + Neon PostgreSQL)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: "Neon.tech async connection string (postgresql+asyncpg://...)"
+    NoEcho: true
+  SyncDatabaseUrl:
+    Type: String
+    Description: "Neon.tech sync connection string (postgresql://...)"
+    NoEcho: true
+  DomainName:
+    Type: String
+    Default: petrosim.joyon.org
+  HostedZoneId:
+    Type: String
+    Default: Z0072050FBUWUK0K3QKO
+  CertificateArn:
+    Type: String
+    Default: "arn:aws:acm:us-east-1:595235126112:certificate/067b0d8a-8b7c-402b-b0ea-9236748d3d68"
+  AllowedIPs:
+    Type: CommaDelimitedList
+    Default: "82.64.202.39/32"
+    Description: "Comma-separated list of allowed CIDR blocks"
+
+Resources:
+  # ── Backend: Lambda + API Gateway ──
+  PetroSimApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          SYNC_DATABASE_URL: !Ref SyncDatabaseUrl
+          ENVIRONMENT: production
+      Events:
+        ApiCatchAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/{proxy+}
+            Method: ANY
+            ApiId: !Ref HttpApi
+        HealthCheck:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: GET
+            ApiId: !Ref HttpApi
+    Metadata:
+      Dockerfile: infra/aws/Dockerfile.lambda
+      DockerContext: ../../
+      DockerTag: latest
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - !Sub "https://${DomainName}"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+
+  # ── Frontend: S3 Bucket ──
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${DomainName}-frontend"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontAccess
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # ── IP Restriction: CloudFront Function ──
+  IpRestrictionFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: petrosim-ip-restriction
+      AutoPublish: true
+      FunctionCode: |
+        function handler(event) {
+          var allowedCIDRs = ['82.64.202.39/32'];
+          var clientIP = event.viewer.ip;
+          var allowed = false;
+          for (var i = 0; i < allowedCIDRs.length; i++) {
+            var cidr = allowedCIDRs[i];
+            var parts = cidr.split('/');
+            var ip = parts[0];
+            var mask = parseInt(parts[1] || '32');
+            if (mask === 32 && clientIP === ip) { allowed = true; break; }
+            if (mask < 32) {
+              var ipNum = ip.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
+              var clientNum = clientIP.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
+              var m = (~0 << (32 - mask)) >>> 0;
+              if ((ipNum & m) === (clientNum & m)) { allowed = true; break; }
+            }
+          }
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              statusDescription: 'Forbidden',
+              body: { encoding: 'text', data: 'Access denied' }
+            };
+          }
+          return event.request;
+        }
+      FunctionConfig:
+        Comment: "IP whitelist for PetroSim"
+        Runtime: cloudfront-js-2.0
+
+  # ── CDN: CloudFront + Custom Domain + IP Restriction ──
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Aliases:
+          - !Ref DomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+          - Id: ApiOrigin
+            DomainName: !Sub "${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt IpRestrictionFunction.FunctionARN
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: ApiOrigin
+            ViewerProtocolPolicy: https-only
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt IpRestrictionFunction.FunctionARN
+          - PathPattern: /health
+            TargetOriginId: ApiOrigin
+            ViewerProtocolPolicy: https-only
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: petrosim-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ── DNS: Route 53 Record ──
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt CloudFrontDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront's fixed hosted zone ID
+
+Outputs:
+  SiteUrl:
+    Description: PetroSim URL
+    Value: !Sub "https://${DomainName}"
+  ApiUrl:
+    Description: API Gateway direct URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  FrontendBucket:
+    Description: S3 bucket for frontend deployment
+    Value: !Ref FrontendBucket
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID (for cache invalidation)
+    Value: !Ref CloudFrontDistribution
