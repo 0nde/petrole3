@@ -84,9 +84,14 @@ async def get_news(
             except (httpx.HTTPError, httpx.TimeoutException):
                 continue
 
-    # Sort by pub_date descending (best effort)
-    def sort_key(item: dict) -> str:
-        return item.get("pub_date", "")
+    # Sort by pub_date descending (newest first)
+    from email.utils import parsedate_to_datetime
+
+    def sort_key(item: dict) -> datetime:
+        try:
+            return parsedate_to_datetime(item.get("pub_date", ""))
+        except (ValueError, TypeError):
+            return datetime.min
 
     all_items.sort(key=sort_key, reverse=True)
 
