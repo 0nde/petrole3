@@ -5,6 +5,7 @@ import { ResultsPanel } from "../features/simulation/ResultsPanel";
 import { JournalPanel } from "../features/simulation/JournalPanel";
 import { CountryPanel } from "../features/simulation/CountryPanel";
 import { ChokepointPanel } from "../features/simulation/ChokepointPanel";
+import { NewsPanel } from "../features/news/NewsPanel";
 import type { ActivePanel } from "../types";
 import type { TranslationKey } from "../i18n/translations";
 
@@ -13,6 +14,7 @@ const TABS: { id: ActivePanel; labelKey: TranslationKey }[] = [
   { id: "results", labelKey: "tab.results" },
   { id: "journal", labelKey: "tab.journal" },
   { id: "country", labelKey: "tab.country" },
+  { id: "news", labelKey: "tab.news" },
 ];
 
 export function SidePanel() {
@@ -50,6 +52,7 @@ export function SidePanel() {
         {activePanel === "journal" && <JournalPanel />}
         {activePanel === "country" && <CountryPanel />}
         {activePanel === "chokepoint" && <ChokepointPanel />}
+        {activePanel === "news" && <NewsPanel />}
       </div>
     </div>
   );
