@@ -69,6 +69,12 @@ export const runSimulation = (scenarioId: string) =>
     body: JSON.stringify({ scenario_id: scenarioId }),
   });
 
+export const runCombinedSimulation = (scenarioIds: string[]) =>
+  request<SimulationRun>("/simulations/run-combined", {
+    method: "POST",
+    body: JSON.stringify({ scenario_ids: scenarioIds }),
+  });
+
 export const fetchSimulation = (id: string) =>
   request<SimulationRun>(`/simulations/${id}`);
 

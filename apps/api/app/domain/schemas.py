@@ -179,7 +179,9 @@ class ScenarioUpdate(BaseModel):
 class ScenarioOut(BaseModel):
     id: uuid.UUID
     name: str
+    name_fr: str | None = None
     description: str | None
+    description_fr: str | None = None
     is_preset: bool
     created_at: datetime
     updated_at: datetime
@@ -194,6 +196,10 @@ class ScenarioOut(BaseModel):
 
 class SimulationRunRequest(BaseModel):
     scenario_id: uuid.UUID
+
+
+class SimulationRunCombinedRequest(BaseModel):
+    scenario_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
 
 
 class CountryImpactOut(BaseModel):

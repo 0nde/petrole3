@@ -45,7 +45,36 @@ export function useRunSimulation() {
       store.setCurrentRun(run);
       store.setActivePanel("results");
 
-      // Fetch detailed results
+      const [countries, flows, journal] = await Promise.all([
+        api.fetchSimulationCountries(run.id),
+        api.fetchSimulationFlows(run.id, 0),
+        api.fetchSimulationJournal(run.id),
+      ]);
+
+      store.setCountryImpacts(countries);
+      store.setFlowImpacts(flows);
+      store.setJournalSteps(journal);
+      store.setIsSimulating(false);
+    },
+    onError: () => {
+      store.setIsSimulating(false);
+    },
+  });
+}
+
+export function useRunCombinedSimulation() {
+  const store = useAppStore();
+
+  return useMutation({
+    mutationFn: (scenarioIds: string[]) => api.runCombinedSimulation(scenarioIds),
+    onMutate: () => {
+      store.setIsSimulating(true);
+      store.clearResults();
+    },
+    onSuccess: async (run) => {
+      store.setCurrentRun(run);
+      store.setActivePanel("results");
+
       const [countries, flows, journal] = await Promise.all([
         api.fetchSimulationCountries(run.id),
         api.fetchSimulationFlows(run.id, 0),
