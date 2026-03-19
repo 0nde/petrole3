@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-petro-800;
+  }
+  body {
+    @apply bg-petro-950 text-gray-100;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-petro-900/80 backdrop-blur-sm border border-petro-700/50 rounded-lg;
+  }
+  .panel-header {
+    @apply px-4 py-3 border-b border-petro-700/50 font-semibold text-sm uppercase tracking-wider text-petro-300;
+  }
+  .panel-body {
+    @apply p-4;
+  }
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 
+           focus:outline-none focus:ring-2 focus:ring-petro-400/50;
+  }
+  .btn-primary {
+    @apply btn bg-petro-600 hover:bg-petro-500 text-white;
+  }
+  .btn-secondary {
+    @apply btn bg-petro-800 hover:bg-petro-700 text-petro-200;
+  }
+  .btn-danger {
+    @apply btn bg-red-700 hover:bg-red-600 text-white;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-stable {
+    @apply badge bg-green-900/50 text-green-300 border border-green-700/50;
+  }
+  .badge-tension {
+    @apply badge bg-yellow-900/50 text-yellow-300 border border-yellow-700/50;
+  }
+  .badge-critical {
+    @apply badge bg-orange-900/50 text-orange-300 border border-orange-700/50;
+  }
+  .badge-emergency {
+    @apply badge bg-red-900/50 text-red-300 border border-red-700/50;
+  }
+  .stat-value {
+    @apply text-2xl font-bold tabular-nums;
+  }
+  .stat-label {
+    @apply text-xs text-petro-400 uppercase tracking-wider mt-1;
+  }
+}
+
+/* MapLibre overrides */
+.maplibregl-canvas {
+  outline: none;
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(7, 42, 73, 0.8) !important;
+  color: #7cc8fb !important;
+  font-size: 10px !important;
+}

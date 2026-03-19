@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Hormuz Full Blockade",
+    "description": "Complete blockade of the Strait of Hormuz — the world's most critical oil chokepoint handling ~21 Mb/d. Simulates a severe geopolitical crisis in the Persian Gulf.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Hormuz Partial Disruption (50%)",
+    "description": "Partial disruption of the Strait of Hormuz at 50% severity — representing mine threats, military tensions, or insurance cost escalation reducing traffic.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.5, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Bab el-Mandeb Blockade",
+    "description": "Full blockade of Bab el-Mandeb strait — as seen with Houthi attacks on shipping. Affects Red Sea / Suez traffic.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "bab_el_mandeb", "severity": 1.0, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Malacca Strait Crisis",
+    "description": "Full blockade of the Strait of Malacca — the primary route for Middle Eastern oil to East Asia (~16 Mb/d throughput).",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "malacca", "severity": 1.0, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Russian Export Embargo to Europe",
+    "description": "Total Russian oil export embargo toward European countries — simulating a full energy decoupling scenario.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "embargo_targeted", "target_id": "RUS", "severity": 1.0, "params": {"target_regions": ["europe"]}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Saudi Production Collapse (-40%)",
+    "description": "Major Saudi production disruption — simulating attacks on oil infrastructure (e.g., Abqaiq-style attack at larger scale).",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "production_change", "target_id": "SAU", "severity": 0.4, "params": {"delta_pct": -40}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Combined Gulf Crisis",
+    "description": "Severe multi-shock scenario: Hormuz blocked, Saudi production drops 30%, and strategic reserves are released globally.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.8, "params": {}, "order_index": 0},
+      {"action_type": "production_change", "target_id": "SAU", "severity": 0.3, "params": {"delta_pct": -30}, "order_index": 1},
+      {"action_type": "reserve_release", "target_id": "global", "severity": 1.0, "params": {}, "order_index": 2}
+    ]
+  },
+  {
+    "name": "Suez Canal + Bab el-Mandeb Double Block",
+    "description": "Both Red Sea chokepoints blocked — cutting the Europe-Asia maritime shortcut.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "bab_el_mandeb", "severity": 1.0, "params": {}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "suez", "severity": 1.0, "params": {}, "order_index": 1}
+    ]
+  },
+  {
+    "name": "Asia Demand Surge (+15%)",
+    "description": "Rapid demand increase in Asia-Pacific region (+15%) — simulating post-pandemic rebound or cold weather spike.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "demand_change", "target_id": "asia_pacific", "severity": 0.15, "params": {"region_id": "asia_pacific", "delta_pct": 15}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Nigerian Supply Disruption + Bosphorus Block",
+    "description": "Dual supply disruption: Nigerian production halved and Turkish Straits blocked.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "production_change", "target_id": "NGA", "severity": 0.5, "params": {"delta_pct": -50}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "bosphorus", "severity": 1.0, "params": {}, "order_index": 1}
+    ]
+  }
+]

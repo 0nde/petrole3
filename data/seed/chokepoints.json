@@ -1,0 +1,10 @@
+[
+  {"id": "hormuz", "name": "Strait of Hormuz", "throughput_mbpd": 21.0, "longitude": 56.27, "latitude": 26.56},
+  {"id": "malacca", "name": "Strait of Malacca", "throughput_mbpd": 16.0, "longitude": 101.20, "latitude": 2.50},
+  {"id": "suez", "name": "Suez Canal / SUMED Pipeline", "throughput_mbpd": 5.5, "longitude": 32.34, "latitude": 30.46},
+  {"id": "bab_el_mandeb", "name": "Bab el-Mandeb", "throughput_mbpd": 6.2, "longitude": 43.33, "latitude": 12.58},
+  {"id": "bosphorus", "name": "Turkish Straits (Bosphorus)", "throughput_mbpd": 2.4, "longitude": 29.05, "latitude": 41.12},
+  {"id": "danish_straits", "name": "Danish Straits", "throughput_mbpd": 3.2, "longitude": 12.60, "latitude": 55.70},
+  {"id": "panama", "name": "Panama Canal", "throughput_mbpd": 0.9, "longitude": -79.92, "latitude": 9.08},
+  {"id": "cape_good_hope", "name": "Cape of Good Hope", "throughput_mbpd": 6.0, "longitude": 18.50, "latitude": -34.36}
+]

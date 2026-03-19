@@ -1,0 +1,11 @@
+[
+  {"id": "middle_east", "name": "Middle East"},
+  {"id": "north_africa", "name": "North Africa"},
+  {"id": "sub_saharan_africa", "name": "Sub-Saharan Africa"},
+  {"id": "europe", "name": "Europe"},
+  {"id": "cis", "name": "CIS (Russia & Central Asia)"},
+  {"id": "north_america", "name": "North America"},
+  {"id": "latin_america", "name": "Latin America"},
+  {"id": "asia_pacific", "name": "Asia-Pacific"},
+  {"id": "south_asia", "name": "South Asia"}
+]

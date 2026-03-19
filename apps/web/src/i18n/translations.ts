@@ -1,0 +1,188 @@
+/** Bilingual translation dictionary FR / EN for PetroSim. */
+
+export type Lang = "fr" | "en";
+
+export const translations = {
+  // ── Header ──
+  "app.title": { en: "PetroSim", fr: "PetroSim" },
+  "app.subtitle": { en: "Oil Geopolitics Simulator", fr: "Simulateur de géopolitique pétrolière" },
+  "mode.simple": { en: "Simple", fr: "Simple" },
+  "mode.expert": { en: "Expert", fr: "Expert" },
+
+  // ── Tabs ──
+  "tab.scenarios": { en: "Scenarios", fr: "Scénarios" },
+  "tab.results": { en: "Results", fr: "Résultats" },
+  "tab.journal": { en: "Journal", fr: "Journal" },
+  "tab.country": { en: "Country", fr: "Pays" },
+
+  // ── Scenario panel ──
+  "scenarios.loading": { en: "Loading scenarios…", fr: "Chargement des scénarios…" },
+  "scenarios.preset": { en: "Preset Scenarios", fr: "Scénarios prédéfinis" },
+  "scenarios.custom": { en: "Custom Scenarios", fr: "Scénarios personnalisés" },
+  "scenarios.preset_badge": { en: "preset", fr: "prédéfini" },
+  "scenarios.actions_count": { en: "{n} action{s}", fr: "{n} action{s}" },
+  "scenarios.run": { en: "Run Simulation", fr: "Lancer la simulation" },
+  "scenarios.running": { en: "Running Simulation…", fr: "Simulation en cours…" },
+
+  // ── Action types (human-readable) ──
+  "action.chokepoint_block": { en: "Chokepoint blockade", fr: "Blocage de détroit" },
+  "action.route_block": { en: "Route blockade", fr: "Blocage de route" },
+  "action.embargo_total": { en: "Total embargo", fr: "Embargo total" },
+  "action.embargo_targeted": { en: "Targeted embargo", fr: "Embargo ciblé" },
+  "action.production_change": { en: "Production change", fr: "Variation de production" },
+  "action.demand_change": { en: "Demand change", fr: "Variation de demande" },
+  "action.reserve_release": { en: "Reserve release", fr: "Libération de réserves" },
+  "action.port_disruption": { en: "Port disruption", fr: "Perturbation portuaire" },
+
+  // ── Results panel ──
+  "results.no_sim": {
+    en: "Select a scenario and run a simulation to see results here.",
+    fr: "Sélectionnez un scénario et lancez une simulation pour voir les résultats ici.",
+  },
+  "results.title": { en: "Simulation Results", fr: "Résultats de la simulation" },
+  "results.global_stress": { en: "Global stress", fr: "Stress mondial" },
+  "results.supply_loss": { en: "Supply loss", fr: "Perte d'approvisionnement" },
+  "results.price_impact": { en: "Price impact", fr: "Impact sur les prix" },
+  "results.countries_affected": { en: "Countries affected", fr: "Pays affectés" },
+  "results.flow_disruptions": { en: "Flow disruptions", fr: "Flux perturbés" },
+  "results.coverage": { en: "Coverage", fr: "Couverture" },
+  "results.stress": { en: "Stress", fr: "Stress" },
+  "results.production": { en: "Production", fr: "Production" },
+  "results.imports": { en: "Imports", fr: "Importations" },
+  "results.exports": { en: "Exports", fr: "Exportations" },
+  "results.reserves_used": { en: "Reserves used", fr: "Réserves mobilisées" },
+  "results.no_disruption": { en: "No disrupted flows", fr: "Aucun flux perturbé" },
+  "results.loss": { en: "loss", fr: "perte" },
+
+  // ── Stress statuses ──
+  "stress.stable": { en: "Stable", fr: "Stable" },
+  "stress.tension": { en: "Tension", fr: "Tension" },
+  "stress.critical": { en: "Critical", fr: "Critique" },
+  "stress.emergency": { en: "Emergency", fr: "Urgence" },
+
+  // ── Journal panel ──
+  "journal.no_sim": {
+    en: "Run a simulation to see the causal chain of events here.",
+    fr: "Lancez une simulation pour voir le déroulement causal des événements.",
+  },
+  "journal.title": { en: "Simulation Journal", fr: "Journal de simulation" },
+  "journal.step": { en: "Step", fr: "Étape" },
+  "journal.show_detail": { en: "Show technical detail", fr: "Voir les détails techniques" },
+  "journal.hide_detail": { en: "Hide detail", fr: "Masquer les détails" },
+
+  // ── Rule names (narrative) ──
+  "rule.INIT": { en: "Initialization", fr: "Initialisation" },
+  "rule.A": { en: "Chokepoint Disruption", fr: "Perturbation des détroits" },
+  "rule.B": { en: "Embargo Enforcement", fr: "Application de l'embargo" },
+  "rule.C": { en: "Production Adjustment", fr: "Ajustement de la production" },
+  "rule.D": { en: "Domestic Priority", fr: "Priorité domestique" },
+  "rule.E": { en: "Refining Cascade", fr: "Cascade du raffinage" },
+  "rule.F": { en: "Strategic Reserves", fr: "Réserves stratégiques" },
+  "rule.G": { en: "Demand Coverage", fr: "Couverture de la demande" },
+  "rule.H": { en: "Stress Assessment", fr: "Évaluation du stress" },
+  "rule.I": { en: "Price Impact", fr: "Impact sur les prix" },
+  "rule.DEMAND": { en: "Demand Shock", fr: "Choc de demande" },
+  "rule.DONE": { en: "Simulation Complete", fr: "Simulation terminée" },
+
+  // ── Country panel ──
+  "country.no_selection": {
+    en: "Click on a country on the map to see its detailed profile.",
+    fr: "Cliquez sur un pays sur la carte pour voir sa fiche détaillée.",
+  },
+  "country.profile": { en: "Country Profile", fr: "Fiche pays" },
+  "country.region": { en: "Region", fr: "Région" },
+  "country.production": { en: "Oil production", fr: "Production pétrolière" },
+  "country.consumption": { en: "Oil consumption", fr: "Consommation pétrolière" },
+  "country.refining": { en: "Refining capacity", fr: "Capacité de raffinage" },
+  "country.reserves": { en: "Strategic reserves", fr: "Réserves stratégiques" },
+  "country.reserve_rate": { en: "Reserve release rate", fr: "Débit de libération des réserves" },
+  "country.refining_hub": { en: "Refining hub", fr: "Hub de raffinage" },
+  "country.yes": { en: "Yes", fr: "Oui" },
+  "country.no": { en: "No", fr: "Non" },
+  "country.balance": { en: "Supply Balance", fr: "Bilan d'approvisionnement" },
+  "country.net_exporter": { en: "Net exporter", fr: "Exportateur net" },
+  "country.net_importer": { en: "Net importer", fr: "Importateur net" },
+  "country.self_sufficient": { en: "Self-sufficient", fr: "Autosuffisant" },
+  "country.top_suppliers": { en: "Top Suppliers", fr: "Principaux fournisseurs" },
+  "country.top_clients": { en: "Top Clients", fr: "Principaux clients" },
+  "country.no_suppliers": { en: "No import flows recorded", fr: "Aucun flux d'importation enregistré" },
+  "country.no_clients": { en: "No export flows recorded", fr: "Aucun flux d'exportation enregistré" },
+  "country.mbpd": { en: "Mb/d", fr: "Mb/j" },
+  "country.mb": { en: "Mb", fr: "Mb" },
+  "country.days_autonomy": { en: "days of autonomy", fr: "jours d'autonomie" },
+  "country.impact_title": { en: "Simulation Impact", fr: "Impact de la simulation" },
+  "country.no_impact": {
+    en: "No simulation run yet — run a scenario to see the impact on this country.",
+    fr: "Aucune simulation lancée — lancez un scénario pour voir l'impact sur ce pays.",
+  },
+
+  // ── Global stats ──
+  "stats.global_stress": { en: "Global Stress", fr: "Stress mondial" },
+  "stats.supply_loss": { en: "Supply Loss", fr: "Perte d'offre" },
+  "stats.price_impact": { en: "Price Impact", fr: "Impact prix" },
+  "stats.duration": { en: "Computed in", fr: "Calculé en" },
+
+  // ── Region names ──
+  "region.middle_east": { en: "Middle East", fr: "Moyen-Orient" },
+  "region.cis": { en: "CIS / Russia", fr: "CEI / Russie" },
+  "region.north_america": { en: "North America", fr: "Amérique du Nord" },
+  "region.latin_america": { en: "Latin America", fr: "Amérique latine" },
+  "region.europe": { en: "Europe", fr: "Europe" },
+  "region.north_africa": { en: "North Africa", fr: "Afrique du Nord" },
+  "region.sub_saharan_africa": { en: "Sub-Saharan Africa", fr: "Afrique subsaharienne" },
+  "region.asia_pacific": { en: "Asia-Pacific", fr: "Asie-Pacifique" },
+  "region.south_asia": { en: "South Asia", fr: "Asie du Sud" },
+
+  // ── Country names ──
+  "country_name.SAU": { en: "Saudi Arabia", fr: "Arabie saoudite" },
+  "country_name.RUS": { en: "Russia", fr: "Russie" },
+  "country_name.USA": { en: "United States", fr: "États-Unis" },
+  "country_name.IRQ": { en: "Iraq", fr: "Irak" },
+  "country_name.CAN": { en: "Canada", fr: "Canada" },
+  "country_name.CHN": { en: "China", fr: "Chine" },
+  "country_name.ARE": { en: "United Arab Emirates", fr: "Émirats arabes unis" },
+  "country_name.IRN": { en: "Iran", fr: "Iran" },
+  "country_name.KWT": { en: "Kuwait", fr: "Koweït" },
+  "country_name.BRA": { en: "Brazil", fr: "Brésil" },
+  "country_name.NOR": { en: "Norway", fr: "Norvège" },
+  "country_name.NGA": { en: "Nigeria", fr: "Nigéria" },
+  "country_name.AGO": { en: "Angola", fr: "Angola" },
+  "country_name.DZA": { en: "Algeria", fr: "Algérie" },
+  "country_name.LBY": { en: "Libya", fr: "Libye" },
+  "country_name.KAZ": { en: "Kazakhstan", fr: "Kazakhstan" },
+  "country_name.MEX": { en: "Mexico", fr: "Mexique" },
+  "country_name.VEN": { en: "Venezuela", fr: "Venezuela" },
+  "country_name.GBR": { en: "United Kingdom", fr: "Royaume-Uni" },
+  "country_name.DEU": { en: "Germany", fr: "Allemagne" },
+  "country_name.FRA": { en: "France", fr: "France" },
+  "country_name.ITA": { en: "Italy", fr: "Italie" },
+  "country_name.ESP": { en: "Spain", fr: "Espagne" },
+  "country_name.NLD": { en: "Netherlands", fr: "Pays-Bas" },
+  "country_name.JPN": { en: "Japan", fr: "Japon" },
+  "country_name.KOR": { en: "South Korea", fr: "Corée du Sud" },
+  "country_name.IND": { en: "India", fr: "Inde" },
+  "country_name.SGP": { en: "Singapore", fr: "Singapour" },
+  "country_name.TUR": { en: "Turkey", fr: "Turquie" },
+  "country_name.TWN": { en: "Taiwan", fr: "Taïwan" },
+  "country_name.THA": { en: "Thailand", fr: "Thaïlande" },
+  "country_name.AUS": { en: "Australia", fr: "Australie" },
+  "country_name.POL": { en: "Poland", fr: "Pologne" },
+  "country_name.GRC": { en: "Greece", fr: "Grèce" },
+  "country_name.EGY": { en: "Egypt", fr: "Égypte" },
+  "country_name.IDN": { en: "Indonesia", fr: "Indonésie" },
+  "country_name.COL": { en: "Colombia", fr: "Colombie" },
+  "country_name.QAT": { en: "Qatar", fr: "Qatar" },
+  "country_name.OMN": { en: "Oman", fr: "Oman" },
+
+  // ── Chokepoint names ──
+  "chokepoint.hormuz": { en: "Strait of Hormuz", fr: "Détroit d'Ormuz" },
+  "chokepoint.malacca": { en: "Strait of Malacca", fr: "Détroit de Malacca" },
+  "chokepoint.suez": { en: "Suez Canal", fr: "Canal de Suez" },
+  "chokepoint.bab_el_mandeb": { en: "Bab el-Mandeb", fr: "Bab el-Mandeb" },
+  "chokepoint.bosphorus": { en: "Turkish Straits", fr: "Détroits turcs" },
+  "chokepoint.panama": { en: "Panama Canal", fr: "Canal de Panama" },
+  "chokepoint.cape_good_hope": { en: "Cape of Good Hope", fr: "Cap de Bonne-Espérance" },
+  "chokepoint.danish_straits": { en: "Danish Straits", fr: "Détroits danois" },
+} as const;
+
+export type TranslationKey = keyof typeof translations;
