@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useCallback } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useAppStore } from "../../store/appStore";
@@ -136,6 +136,7 @@ export function MapView() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const animFrameRef = useRef<number>(0);
   const geoLoadedRef = useRef(false);
+  const sourcesReadyRef = useRef(false);
 
   const { data: countries } = useCountries();
   const { data: chokepoints } = useChokepoints();
@@ -178,6 +179,8 @@ export function MapView() {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+
+      sourcesReadyRef.current = true;
 
       // Flow route lines layer
       map.addLayer({
@@ -305,61 +308,59 @@ export function MapView() {
   }, [impactMap, selectedCountryCode]);
 
   // Update flow lines + animate ships when selected country changes
-  const animateFlows = useCallback(() => {
-    const map = mapRef.current;
-    if (!map || !flows || !selectedCountryCode) {
-      // Clear flows when no country selected
-      if (map?.getSource("flow-lines")) {
-        (map.getSource("flow-lines") as maplibregl.GeoJSONSource).setData({
-          type: "FeatureCollection", features: [],
-        });
-      }
-      if (map?.getSource("ship-positions")) {
-        (map.getSource("ship-positions") as maplibregl.GeoJSONSource).setData({
-          type: "FeatureCollection", features: [],
-        });
-      }
-      return;
-    }
-
-    // Set flow lines (static)
-    const lineData = buildFlowLinesGeoJSON(flows, selectedCountryCode);
-    (map.getSource("flow-lines") as maplibregl.GeoJSONSource).setData(lineData);
-
-    // Animate ship positions
-    let startTime = performance.now();
-    const speed = 0.00004; // cycles per ms (~25 seconds per full route)
-
-    function animate() {
-      if (!mapRef.current) return;
-      const elapsed = performance.now() - startTime;
-      const progress = elapsed * speed;
-      const shipData = buildShipPositions(flows!, selectedCountryCode, progress);
-      const src = mapRef.current.getSource("ship-positions") as maplibregl.GeoJSONSource | undefined;
-      if (src) src.setData(shipData);
-      animFrameRef.current = requestAnimationFrame(animate);
-    }
-
-    cancelAnimationFrame(animFrameRef.current);
-    startTime = performance.now();
-    animate();
-  }, [flows, selectedCountryCode]);
-
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Wait for map to be loaded before setting sources
-    if (map.loaded()) {
-      animateFlows();
+    // Wait until sources are actually added
+    function tryAnimate() {
+      if (!sourcesReadyRef.current || !mapRef.current) return;
+      const m = mapRef.current;
+
+      const flowSrc = m.getSource("flow-lines") as maplibregl.GeoJSONSource | undefined;
+      const shipSrc = m.getSource("ship-positions") as maplibregl.GeoJSONSource | undefined;
+      if (!flowSrc || !shipSrc) return;
+
+      if (!flows || !selectedCountryCode) {
+        flowSrc.setData({ type: "FeatureCollection", features: [] });
+        shipSrc.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+
+      // Set flow lines (static)
+      const lineData = buildFlowLinesGeoJSON(flows, selectedCountryCode);
+      flowSrc.setData(lineData);
+
+      // Animate ship positions
+      const startTime = performance.now();
+      const speed = 0.00004; // ~25 seconds per full route cycle
+
+      function animate() {
+        if (!mapRef.current) return;
+        const elapsed = performance.now() - startTime;
+        const progress = elapsed * speed;
+        const shipData = buildShipPositions(flows!, selectedCountryCode, progress);
+        const src = mapRef.current.getSource("ship-positions") as maplibregl.GeoJSONSource | undefined;
+        if (src) src.setData(shipData);
+        animFrameRef.current = requestAnimationFrame(animate);
+      }
+
+      cancelAnimationFrame(animFrameRef.current);
+      animate();
+    }
+
+    // If map is loaded and sources ready, animate immediately
+    if (map.loaded() && sourcesReadyRef.current) {
+      tryAnimate();
     } else {
-      map.on("load", animateFlows);
+      // Otherwise wait for load, then try
+      map.on("load", () => setTimeout(tryAnimate, 100));
     }
 
     return () => {
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [animateFlows]);
+  }, [flows, selectedCountryCode]);
 
   // Update markers (country dots + chokepoint diamonds)
   useEffect(() => {
