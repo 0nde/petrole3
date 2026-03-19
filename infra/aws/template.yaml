@@ -57,7 +57,7 @@ Resources:
             Method: GET
             ApiId: !Ref HttpApi
     Metadata:
-      Dockerfile: Dockerfile.lambda
+      Dockerfile: infra/aws/Dockerfile.lambda
       DockerContext: ../../
       DockerTag: latest
 
