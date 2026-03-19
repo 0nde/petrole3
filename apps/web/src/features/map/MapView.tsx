@@ -13,17 +13,22 @@ const STRESS_COLORS: Record<StressStatus, string> = {
   emergency: "#ef4444",
 };
 
-const COUNTRY_GEOJSON_URL =
-  "https://raw.githubusercontent.com/datasets/geo-countries/main/data/countries.geojson";
+// Country boundaries served by our backend (cached Natural Earth 110m, stripped to ~200KB)
+const COUNTRY_GEOJSON_URL = "/api/v1/geo/countries";
 
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /** Build a color match expression for the country fill layer. */
+/** Use ISO_A3_EH with fallback to ISO_A3 (handles -99 disputed territories). */
+const ISO_PROP: maplibregl.ExpressionSpecification = [
+  "coalesce", ["get", "ISO_A3_EH"], ["get", "ISO_A3"],
+];
+
 function buildCountryColorExpr(
   impactMap: Map<string, CountryImpact>,
   selectedCode: string | null,
 ): maplibregl.ExpressionSpecification {
-  const expr: unknown[] = ["match", ["get", "ISO_A3"]];
+  const expr: unknown[] = ["match", ISO_PROP];
   impactMap.forEach((ci, code) => {
     expr.push(code, STRESS_COLORS[ci.stress_status]);
   });
@@ -256,8 +261,9 @@ export function MapView() {
             // Click on country polygon
             map.on("click", "country-fill", (e) => {
               const feature = e.features?.[0];
-              if (feature?.properties?.ISO_A3) {
-                setSelectedCountryCode(feature.properties.ISO_A3);
+              const code = feature?.properties?.ISO_A3_EH || feature?.properties?.ISO_A3;
+              if (code && code !== "-99") {
+                setSelectedCountryCode(code);
               }
             });
             map.on("mouseenter", "country-fill", () => {
@@ -293,7 +299,7 @@ export function MapView() {
 
     // Outline selected country
     const outlineExpr: maplibregl.ExpressionSpecification = selectedCountryCode
-      ? ["case", ["==", ["get", "ISO_A3"], selectedCountryCode], "#3b82f6", "transparent"]
+      ? ["case", ["==", ISO_PROP, selectedCountryCode], "#3b82f6", "transparent"]
       : "transparent" as unknown as maplibregl.ExpressionSpecification;
     map.setPaintProperty("country-outline", "line-color", outlineExpr);
   }, [impactMap, selectedCountryCode]);
