@@ -9,7 +9,7 @@ polars==1.18.0
 geoalchemy2==0.15.2
 python-dotenv==1.0.1
 httpx==0.28.1
-orjson==3.10.13
+orjson==3.11.7
 
 # Testing
 pytest==8.3.4
