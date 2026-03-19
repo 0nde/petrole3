@@ -168,69 +168,117 @@ export function CountryPanel() {
       )}
 
       {/* Top suppliers */}
-      {suppliers.length > 0 && (
-        <div className="p-4 border-b border-petro-700/50">
-          <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider mb-2">
-            {t("country.top_suppliers")}
-          </h4>
-          <div className="space-y-1">
-            {suppliers.slice(0, 8).map((s) => {
-              const totalImports = suppliers.reduce((sum, x) => sum + x.volume, 0);
-              const pct = totalImports > 0 ? (s.volume / totalImports) * 100 : 0;
-              return (
-                <div key={s.code} className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedCountryCode(s.code)}
-                    className="text-xs text-petro-200 hover:text-white transition-colors w-28 text-left truncate"
-                  >
-                    {countryName(s.code)}
-                  </button>
-                  <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+      {suppliers.length > 0 && (() => {
+        const totalImports = suppliers.reduce((sum, x) => sum + x.volume, 0);
+        const shown = suppliers.slice(0, 8);
+        const shownTotal = shown.reduce((sum, x) => sum + x.volume, 0);
+        const othersVolume = totalImports - shownTotal;
+        const othersPct = totalImports > 0 ? (othersVolume / totalImports) * 100 : 0;
+        return (
+          <div className="p-4 border-b border-petro-700/50">
+            <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider mb-2">
+              {t("country.top_suppliers")}
+              <span className="ml-2 text-[10px] font-normal text-petro-500">
+                ({totalImports.toFixed(2)} {t("country.mbpd")} {lang === "fr" ? "total" : "total"})
+              </span>
+            </h4>
+            <div className="space-y-1.5">
+              {shown.map((s) => {
+                const pct = totalImports > 0 ? (s.volume / totalImports) * 100 : 0;
+                return (
+                  <div key={s.code} className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedCountryCode(s.code)}
+                      className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate"
+                    >
+                      {countryName(s.code)}
+                    </button>
+                    <span className="text-xs font-bold text-blue-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                    <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
+                      {s.volume.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-petro-400 w-16 text-right font-mono">
-                    {s.volume.toFixed(2)} {t("country.mbpd")}
+                );
+              })}
+              {othersVolume > 0.001 && (
+                <div className="flex items-center gap-2 opacity-60">
+                  <span className="text-[10px] text-petro-500 w-24 truncate italic">
+                    {lang === "fr" ? "Autres" : "Others"}
+                  </span>
+                  <span className="text-[10px] font-medium text-petro-500 w-10 text-right">{othersPct.toFixed(0)}%</span>
+                  <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-petro-600 rounded-full" style={{ width: `${othersPct}%` }} />
+                  </div>
+                  <span className="text-[10px] text-petro-600 w-14 text-right font-mono">
+                    {othersVolume.toFixed(2)}
                   </span>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {suppliers.length === 0 && country && country.consumption_mbpd > country.production_mbpd && (
         <div className="px-4 py-2 text-[10px] text-petro-500">{t("country.no_suppliers")}</div>
       )}
 
       {/* Top clients */}
-      {clients.length > 0 && (
-        <div className="p-4 border-b border-petro-700/50">
-          <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider mb-2">
-            {t("country.top_clients")}
-          </h4>
-          <div className="space-y-1">
-            {clients.slice(0, 8).map((c) => {
-              const totalExports = clients.reduce((sum, x) => sum + x.volume, 0);
-              const pct = totalExports > 0 ? (c.volume / totalExports) * 100 : 0;
-              return (
-                <div key={c.code} className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedCountryCode(c.code)}
-                    className="text-xs text-petro-200 hover:text-white transition-colors w-28 text-left truncate"
-                  >
-                    {countryName(c.code)}
-                  </button>
-                  <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+      {clients.length > 0 && (() => {
+        const totalExports = clients.reduce((sum, x) => sum + x.volume, 0);
+        const shown = clients.slice(0, 8);
+        const shownTotal = shown.reduce((sum, x) => sum + x.volume, 0);
+        const othersVolume = totalExports - shownTotal;
+        const othersPct = totalExports > 0 ? (othersVolume / totalExports) * 100 : 0;
+        return (
+          <div className="p-4 border-b border-petro-700/50">
+            <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider mb-2">
+              {t("country.top_clients")}
+              <span className="ml-2 text-[10px] font-normal text-petro-500">
+                ({totalExports.toFixed(2)} {t("country.mbpd")} {lang === "fr" ? "total" : "total"})
+              </span>
+            </h4>
+            <div className="space-y-1.5">
+              {shown.map((c) => {
+                const pct = totalExports > 0 ? (c.volume / totalExports) * 100 : 0;
+                return (
+                  <div key={c.code} className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedCountryCode(c.code)}
+                      className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate"
+                    >
+                      {countryName(c.code)}
+                    </button>
+                    <span className="text-xs font-bold text-emerald-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                    <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
+                      {c.volume.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-petro-400 w-16 text-right font-mono">
-                    {c.volume.toFixed(2)} {t("country.mbpd")}
+                );
+              })}
+              {othersVolume > 0.001 && (
+                <div className="flex items-center gap-2 opacity-60">
+                  <span className="text-[10px] text-petro-500 w-24 truncate italic">
+                    {lang === "fr" ? "Autres" : "Others"}
+                  </span>
+                  <span className="text-[10px] font-medium text-petro-500 w-10 text-right">{othersPct.toFixed(0)}%</span>
+                  <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-petro-600 rounded-full" style={{ width: `${othersPct}%` }} />
+                  </div>
+                  <span className="text-[10px] text-petro-600 w-14 text-right font-mono">
+                    {othersVolume.toFixed(2)}
                   </span>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {clients.length === 0 && country && country.production_mbpd > country.consumption_mbpd && (
         <div className="px-4 py-2 text-[10px] text-petro-500">{t("country.no_clients")}</div>
       )}

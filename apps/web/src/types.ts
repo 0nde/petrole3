@@ -83,7 +83,9 @@ export interface ScenarioAction {
 export interface Scenario {
   id: string;
   name: string;
+  name_fr: string | null;
   description: string | null;
+  description_fr: string | null;
   is_preset: boolean;
   created_at: string;
   updated_at: string;
@@ -152,4 +154,4 @@ export type StressStatus = "stable" | "tension" | "critical" | "emergency";
 
 export type ViewMode = "simple" | "expert";
 
-export type ActivePanel = "scenarios" | "results" | "journal" | "country" | "chokepoint" | null;
+export type ActivePanel = "scenarios" | "results" | "journal" | "country" | "chokepoint" | "news" | null;

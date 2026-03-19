@@ -20,9 +20,12 @@ interface AppState {
   activePanel: ActivePanel;
   setActivePanel: (panel: ActivePanel) => void;
 
-  // Selected scenario
+  // Selected scenario(s)
   selectedScenario: Scenario | null;
   setSelectedScenario: (scenario: Scenario | null) => void;
+  selectedScenarios: Scenario[];
+  toggleScenario: (scenario: Scenario) => void;
+  clearSelectedScenarios: () => void;
 
   // Selected country (on map click)
   selectedCountryCode: string | null;
@@ -61,7 +64,17 @@ export const useAppStore = create<AppState>((set) => ({
   setActivePanel: (panel) => set({ activePanel: panel }),
 
   selectedScenario: null,
-  setSelectedScenario: (scenario) => set({ selectedScenario: scenario }),
+  setSelectedScenario: (scenario) => set({ selectedScenario: scenario, selectedScenarios: scenario ? [scenario] : [] }),
+
+  selectedScenarios: [],
+  toggleScenario: (scenario) => set((state) => {
+    const exists = state.selectedScenarios.find((s) => s.id === scenario.id);
+    const next = exists
+      ? state.selectedScenarios.filter((s) => s.id !== scenario.id)
+      : [...state.selectedScenarios, scenario];
+    return { selectedScenarios: next, selectedScenario: next.length === 1 ? next[0] : next.length > 1 ? next[0] : null };
+  }),
+  clearSelectedScenarios: () => set({ selectedScenarios: [], selectedScenario: null }),
 
   selectedCountryCode: null,
   setSelectedCountryCode: (code) => set({ selectedCountryCode: code, selectedChokepointId: null, activePanel: code ? "country" : null }),

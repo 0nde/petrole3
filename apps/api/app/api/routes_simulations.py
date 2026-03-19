@@ -27,6 +27,7 @@ from app.domain.schemas import (
     FlowImpactOut,
     NarrativeOut,
     SimulationDetailOut,
+    SimulationRunCombinedRequest,
     SimulationRunOut,
     SimulationRunRequest,
     SimulationStepOut,
@@ -187,6 +188,107 @@ async def run_simulation(body: SimulationRunRequest, db: AsyncSession = Depends(
             description=step.description,
             affected_entities=step.affected_entities,
             detail=step.detail,
+        ))
+
+    await db.flush()
+    await db.refresh(run)
+    return run
+
+
+@router.post("/run-combined", response_model=SimulationRunOut, status_code=201)
+async def run_combined_simulation(body: SimulationRunCombinedRequest, db: AsyncSession = Depends(get_db)):
+    """Run a simulation combining actions from multiple scenarios."""
+    # Load all selected scenarios
+    result = await db.execute(
+        select(Scenario)
+        .options(selectinload(Scenario.actions))
+        .where(Scenario.id.in_(body.scenario_ids))
+    )
+    scenarios = result.scalars().all()
+    if len(scenarios) != len(body.scenario_ids):
+        raise HTTPException(404, "One or more scenarios not found")
+
+    # Merge all actions from all scenarios
+    actions = []
+    for scenario in scenarios:
+        for a in scenario.actions:
+            actions.append({
+                "action_type": a.action_type,
+                "target_id": a.target_id,
+                "severity": a.severity,
+                "params": a.params or {},
+            })
+
+    if not actions:
+        raise HTTPException(400, "Selected scenarios have no actions")
+
+    # Create a temporary combined scenario
+    combined_name = " + ".join(s.name for s in scenarios)
+    combined_scenario = Scenario(
+        id=uuid.uuid4(),
+        name=f"[Combined] {combined_name}"[:300],
+        name_fr=None,
+        description=f"Combined simulation from {len(scenarios)} scenarios",
+        description_fr=f"Simulation combinée de {len(scenarios)} scénarios",
+        is_preset=False,
+    )
+    db.add(combined_scenario)
+    await db.flush()
+
+    # Load reference data and run
+    ref = await _load_reference_data(db)
+    engine = SimulationEngine()
+    sim_result = engine.run(
+        countries=ref["countries"],
+        flows=ref["flows"],
+        chokepoints=ref["chokepoints"],
+        routes=ref["routes"],
+        route_chokepoints=ref["route_chokepoints"],
+        actions=actions,
+    )
+
+    # Persist results
+    run_id = uuid.uuid4()
+    run = SimulationRun(
+        id=run_id,
+        scenario_id=combined_scenario.id,
+        status="completed",
+        duration_ms=sim_result.duration_ms,
+        global_stress_score=sim_result.global_stress_score,
+        global_supply_loss_pct=sim_result.global_supply_loss_pct,
+        estimated_price_impact_pct=sim_result.estimated_price_impact_pct,
+        summary=sim_result.summary,
+    )
+    db.add(run)
+
+    for ci in sim_result.country_impacts:
+        db.add(SimulationCountryImpact(
+            id=uuid.uuid4(), run_id=run_id,
+            country_code=ci.country_code,
+            production_before=ci.production_before, production_after=ci.production_after,
+            consumption=ci.consumption,
+            imports_before=ci.imports_before, imports_after=ci.imports_after,
+            exports_before=ci.exports_before, exports_after=ci.exports_after,
+            domestic_available=ci.domestic_available,
+            demand_coverage_ratio=ci.demand_coverage_ratio,
+            stress_score=ci.stress_score, stress_status=ci.stress_status,
+            reserve_mobilized_mbpd=ci.reserve_mobilized_mbpd,
+        ))
+
+    for fi in sim_result.flow_impacts:
+        db.add(SimulationFlowImpact(
+            id=uuid.uuid4(), run_id=run_id,
+            flow_id=fi.flow_id,
+            volume_before=fi.volume_before, volume_after=fi.volume_after,
+            loss_pct=fi.loss_pct, loss_reasons=fi.loss_reasons,
+        ))
+
+    for step in sim_result.steps:
+        db.add(SimulationStep(
+            id=uuid.uuid4(), run_id=run_id,
+            step_number=step.step_number, rule_id=step.rule_id,
+            description=step.description,
+            affected_entities=step.affected_entities, detail=step.detail,
         ))
 
     await db.flush()
