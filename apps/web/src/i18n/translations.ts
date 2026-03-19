@@ -16,6 +16,7 @@ export const translations = {
   "tab.country": { en: "Country", fr: "Pays" },
   "tab.chokepoint": { en: "Chokepoint", fr: "Détroit" },
   "tab.news": { en: "News", fr: "Actualités" },
+  "tab.crisis": { en: "Impact", fr: "Impact" },
 
   // ── Scenario panel ──
   "scenarios.loading": { en: "Loading scenarios…", fr: "Chargement des scénarios…" },
