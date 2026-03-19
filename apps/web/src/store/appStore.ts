@@ -28,6 +28,10 @@ interface AppState {
   selectedCountryCode: string | null;
   setSelectedCountryCode: (code: string | null) => void;
 
+  // Selected chokepoint (on map click)
+  selectedChokepointId: string | null;
+  setSelectedChokepointId: (id: string | null) => void;
+
   // Simulation results
   currentRun: SimulationRun | null;
   setCurrentRun: (run: SimulationRun | null) => void;
@@ -60,7 +64,10 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedScenario: (scenario) => set({ selectedScenario: scenario }),
 
   selectedCountryCode: null,
-  setSelectedCountryCode: (code) => set({ selectedCountryCode: code, activePanel: code ? "country" : null }),
+  setSelectedCountryCode: (code) => set({ selectedCountryCode: code, selectedChokepointId: null, activePanel: code ? "country" : null }),
+
+  selectedChokepointId: null,
+  setSelectedChokepointId: (id) => set({ selectedChokepointId: id, selectedCountryCode: null, activePanel: id ? "chokepoint" : null }),
 
   currentRun: null,
   setCurrentRun: (run) => set({ currentRun: run }),

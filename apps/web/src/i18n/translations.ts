@@ -14,6 +14,7 @@ export const translations = {
   "tab.results": { en: "Results", fr: "Résultats" },
   "tab.journal": { en: "Journal", fr: "Journal" },
   "tab.country": { en: "Country", fr: "Pays" },
+  "tab.chokepoint": { en: "Chokepoint", fr: "Détroit" },
 
   // ── Scenario panel ──
   "scenarios.loading": { en: "Loading scenarios…", fr: "Chargement des scénarios…" },

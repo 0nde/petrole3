@@ -152,4 +152,4 @@ export type StressStatus = "stable" | "tension" | "critical" | "emergency";
 
 export type ViewMode = "simple" | "expert";
 
-export type ActivePanel = "scenarios" | "results" | "journal" | "country" | null;
+export type ActivePanel = "scenarios" | "results" | "journal" | "country" | "chokepoint" | null;
