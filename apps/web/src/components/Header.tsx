@@ -6,16 +6,33 @@ export function Header() {
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const isSimulating = useAppStore((s) => s.isSimulating);
+  const clearResults = useAppStore((s) => s.clearResults);
+  const setActivePanel = useAppStore((s) => s.setActivePanel);
+  const setSelectedCountryCode = useAppStore((s) => s.setSelectedCountryCode);
+  const clearSelectedScenarios = useAppStore((s) => s.clearSelectedScenarios);
+  const currentRun = useAppStore((s) => s.currentRun);
   const { t, lang, setLang } = useI18n();
+
+  function handleReset() {
+    clearResults();
+    clearSelectedScenarios();
+    setSelectedCountryCode(null);
+    setActivePanel("scenarios");
+  }
 
   return (
     <header className="h-12 bg-petro-900 border-b border-petro-700/50 flex items-center justify-between px-4 shrink-0 z-20">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-petro-400 animate-pulse" />
+        <button onClick={handleReset} className="flex items-center gap-2 hover:opacity-80 transition-opacity" title={lang === "fr" ? "Réinitialiser la simulation" : "Reset simulation"}>
+          <div className={`w-2 h-2 rounded-full ${currentRun ? "bg-orange-400" : "bg-petro-400"} animate-pulse`} />
           <span className="font-bold text-petro-100 tracking-tight">PetroSim</span>
-        </div>
+        </button>
         <span className="text-xs text-petro-500 hidden sm:inline">{t("app.subtitle")}</span>
+        {currentRun && (
+          <button onClick={handleReset} className="text-[10px] px-2 py-0.5 rounded bg-orange-900/30 text-orange-400 border border-orange-700/30 hover:bg-orange-900/50 transition-colors">
+            {lang === "fr" ? "✕ Réinitialiser" : "✕ Reset"}
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-4">

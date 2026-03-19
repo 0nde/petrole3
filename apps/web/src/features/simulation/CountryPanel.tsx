@@ -3,7 +3,9 @@ import { useAppStore } from "../../store/appStore";
 import { useCountries, useFlows } from "../../api/hooks";
 import { useI18n } from "../../i18n/useI18n";
 import { stressConsequences } from "../../data/stressConsequences";
+import { getTradeProfile } from "../../data/countryTradeProfiles";
 import type { StressStatus } from "../../types";
+import type { Lang } from "../../i18n/translations";
 
 const STATUS_BG: Record<StressStatus, string> = {
   stable: "bg-green-500/10 border-green-500/30",
@@ -185,21 +187,37 @@ export function CountryPanel() {
             <div className="space-y-1.5">
               {shown.map((s) => {
                 const pct = totalImports > 0 ? (s.volume / totalImports) * 100 : 0;
+                const tp = getTradeProfile(s.code);
+                const l = lang as Lang;
                 return (
-                  <div key={s.code} className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedCountryCode(s.code)}
-                      className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate"
-                    >
-                      {countryName(s.code)}
-                    </button>
-                    <span className="text-xs font-bold text-blue-400 w-10 text-right">{pct.toFixed(0)}%</span>
-                    <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                  <div key={s.code} className="group/tip relative">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedCountryCode(s.code)}
+                        className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate underline decoration-dotted decoration-petro-600 underline-offset-2"
+                      >
+                        {countryName(s.code)}
+                      </button>
+                      <span className="text-xs font-bold text-blue-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                      <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
+                        {s.volume.toFixed(2)}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
-                      {s.volume.toFixed(2)}
-                    </span>
+                    {tp && (
+                      <div className="hidden group-hover/tip:block absolute left-0 right-0 top-full z-20 mt-1 p-2.5 rounded-lg bg-petro-900 border border-petro-600/50 shadow-xl text-[10px] leading-relaxed">
+                        <div className="font-bold text-petro-200 mb-1">{tp.role[l]}</div>
+                        <p className="text-petro-400 mb-1">{(tp.whyExporter || tp.whyImporter)?.[l]}</p>
+                        <p className="text-blue-300 italic">{tp.keyFact[l]}</p>
+                        <div className="mt-1.5 pt-1.5 border-t border-petro-700/50 text-petro-500">
+                          {l === "fr"
+                            ? `${pct.toFixed(0)}% = part de ${countryName(s.code)} dans les imports totaux de ${countryName(selectedCode!)}. Ce % peut différer quand on regarde depuis l'autre pays (base de calcul différente).`
+                            : `${pct.toFixed(0)}% = share of ${countryName(s.code)} in ${countryName(selectedCode!)}'s total imports. This % may differ when viewed from the other country (different calculation base).`}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -243,21 +261,37 @@ export function CountryPanel() {
             <div className="space-y-1.5">
               {shown.map((c) => {
                 const pct = totalExports > 0 ? (c.volume / totalExports) * 100 : 0;
+                const tp = getTradeProfile(c.code);
+                const l = lang as Lang;
                 return (
-                  <div key={c.code} className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedCountryCode(c.code)}
-                      className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate"
-                    >
-                      {countryName(c.code)}
-                    </button>
-                    <span className="text-xs font-bold text-emerald-400 w-10 text-right">{pct.toFixed(0)}%</span>
-                    <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                  <div key={c.code} className="group/tip relative">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedCountryCode(c.code)}
+                        className="text-xs text-petro-200 hover:text-white transition-colors w-24 text-left truncate underline decoration-dotted decoration-petro-600 underline-offset-2"
+                      >
+                        {countryName(c.code)}
+                      </button>
+                      <span className="text-xs font-bold text-emerald-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                      <div className="flex-1 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
+                        {c.volume.toFixed(2)}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-petro-500 w-14 text-right font-mono">
-                      {c.volume.toFixed(2)}
-                    </span>
+                    {tp && (
+                      <div className="hidden group-hover/tip:block absolute left-0 right-0 top-full z-20 mt-1 p-2.5 rounded-lg bg-petro-900 border border-petro-600/50 shadow-xl text-[10px] leading-relaxed">
+                        <div className="font-bold text-petro-200 mb-1">{tp.role[l]}</div>
+                        <p className="text-petro-400 mb-1">{(tp.whyImporter || tp.whyExporter)?.[l]}</p>
+                        <p className="text-emerald-300 italic">{tp.keyFact[l]}</p>
+                        <div className="mt-1.5 pt-1.5 border-t border-petro-700/50 text-petro-500">
+                          {l === "fr"
+                            ? `${pct.toFixed(0)}% = part de ${countryName(c.code)} dans les exports totaux de ${countryName(selectedCode!)}. Ce % peut différer vu depuis l'autre pays.`
+                            : `${pct.toFixed(0)}% = share of ${countryName(c.code)} in ${countryName(selectedCode!)}'s total exports. This % may differ when viewed from the other country.`}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
