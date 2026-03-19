@@ -8,24 +8,12 @@ export function useCountries() {
   return useQuery({ queryKey: ["countries"], queryFn: api.fetchCountries });
 }
 
-export function useRegions() {
-  return useQuery({ queryKey: ["regions"], queryFn: api.fetchRegions });
-}
-
 export function useChokepoints() {
   return useQuery({ queryKey: ["chokepoints"], queryFn: api.fetchChokepoints });
 }
 
-export function useRoutes() {
-  return useQuery({ queryKey: ["routes"], queryFn: api.fetchRoutes });
-}
-
 export function useFlows() {
   return useQuery({ queryKey: ["flows"], queryFn: api.fetchFlows });
-}
-
-export function usePorts() {
-  return useQuery({ queryKey: ["ports"], queryFn: api.fetchPorts });
 }
 
 export function useScenarios() {
