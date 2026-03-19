@@ -12,27 +12,49 @@ const STRESS_COLORS: Record<StressStatus, string> = {
   emergency: "#ef4444",
 };
 
+const COUNTRY_GEOJSON_URL = "/api/v1/geo/countries";
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+/** ISO_A3_EH with fallback to ISO_A3 (handles -99 disputed territories in Natural Earth). */
+const ISO_PROP: maplibregl.ExpressionSpecification = [
+  "coalesce", ["get", "ISO_A3_EH"], ["get", "ISO_A3"],
+];
+
+function buildCountryColorExpr(
+  impactMap: Map<string, CountryImpact>,
+  selectedCode: string | null,
+): maplibregl.ExpressionSpecification {
+  const expr: unknown[] = ["match", ISO_PROP];
+  impactMap.forEach((ci, code) => {
+    expr.push(code, STRESS_COLORS[ci.stress_status]);
+  });
+  if (selectedCode && !impactMap.has(selectedCode)) {
+    expr.push(selectedCode, "#3b82f6");
+  }
+  expr.push("transparent");
+  return expr as maplibregl.ExpressionSpecification;
+}
 
 export function MapView() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const geoLoadedRef = useRef(false);
 
   const { data: countries } = useCountries();
   const { data: chokepoints } = useChokepoints();
   const countryImpacts = useAppStore((s) => s.countryImpacts);
+  const selectedCountryCode = useAppStore((s) => s.selectedCountryCode);
   const setSelectedCountryCode = useAppStore((s) => s.setSelectedCountryCode);
   const setSelectedChokepointId = useAppStore((s) => s.setSelectedChokepointId);
 
-  // Build impact lookup
   const impactMap = useMemo(() => {
     const map = new Map<string, CountryImpact>();
     countryImpacts.forEach((ci) => map.set(ci.country_code, ci));
     return map;
   }, [countryImpacts]);
 
-  // Initialize map
+  // Initialize map + load country boundaries for choropleth
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
@@ -49,117 +71,111 @@ export function MapView() {
     map.addControl(new maplibregl.NavigationControl(), "bottom-left");
     mapRef.current = map;
 
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
+    map.on("load", () => {
+      fetch(COUNTRY_GEOJSON_URL)
+        .then((r) => r.json())
+        .then((geojson) => {
+          if (!map.getSource("country-boundaries")) {
+            map.addSource("country-boundaries", { type: "geojson", data: geojson });
 
-  // Update markers when data changes
+            const firstSymbolLayer = map.getStyle().layers?.find((l) => l.type === "symbol");
+
+            map.addLayer(
+              {
+                id: "country-fill",
+                type: "fill",
+                source: "country-boundaries",
+                paint: { "fill-color": "transparent", "fill-opacity": 0.25 },
+              },
+              firstSymbolLayer?.id,
+            );
+            map.addLayer(
+              {
+                id: "country-outline",
+                type: "line",
+                source: "country-boundaries",
+                paint: { "line-color": "transparent", "line-width": 1.5, "line-opacity": 0.6 },
+              },
+              firstSymbolLayer?.id,
+            );
+
+            map.on("click", "country-fill", (e) => {
+              const code = e.features?.[0]?.properties?.ISO_A3_EH || e.features?.[0]?.properties?.ISO_A3;
+              if (code && code !== "-99") setSelectedCountryCode(code);
+            });
+            map.on("mouseenter", "country-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", "country-fill", () => { map.getCanvas().style.cursor = ""; });
+
+            geoLoadedRef.current = true;
+          }
+        })
+        .catch(() => { /* GeoJSON load failed — dot markers still work as fallback */ });
+    });
+
+    return () => { map.remove(); mapRef.current = null; };
+  }, [setSelectedCountryCode]);
+
+  // Update country fill colors when impacts or selection changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !geoLoadedRef.current || !map.getLayer("country-fill")) return;
+
+    map.setPaintProperty("country-fill", "fill-color", buildCountryColorExpr(impactMap, selectedCountryCode));
+
+    const outlineExpr: maplibregl.ExpressionSpecification = selectedCountryCode
+      ? ["case", ["==", ISO_PROP, selectedCountryCode], "#3b82f6", "transparent"]
+      : "transparent" as unknown as maplibregl.ExpressionSpecification;
+    map.setPaintProperty("country-outline", "line-color", outlineExpr);
+  }, [impactMap, selectedCountryCode]);
+
+  // Update markers (country dots + chokepoint diamonds)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !countries) return;
 
-    // Clear existing markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Country markers
     countries.forEach((c) => {
       const impact = impactMap.get(c.code);
       const hasImpact = !!impact;
-      const color = hasImpact ? STRESS_COLORS[impact.stress_status] : "#7cc8fb";
-      const size = hasImpact
-        ? Math.max(8, Math.min(28, 8 + impact.stress_score * 0.2))
-        : 6;
+      const isSelected = c.code === selectedCountryCode;
+      const color = hasImpact ? STRESS_COLORS[impact.stress_status] : isSelected ? "#3b82f6" : "#7cc8fb";
+      const size = hasImpact ? Math.max(6, Math.min(20, 6 + impact.stress_score * 0.14)) : isSelected ? 8 : 4;
 
       const el = document.createElement("div");
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.cursor = "pointer";
+      el.style.cssText = `width:${size}px;height:${size}px;cursor:pointer`;
 
       const dot = document.createElement("div");
-      dot.style.width = "100%";
-      dot.style.height = "100%";
-      dot.style.borderRadius = "50%";
-      dot.style.backgroundColor = color;
-      dot.style.border = `2px solid ${hasImpact ? color : "rgba(124,200,251,0.4)"}`;
-      dot.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
-      dot.style.boxShadow = hasImpact
-        ? `0 0 ${size}px ${color}40`
-        : "none";
+      dot.style.cssText = `width:100%;height:100%;border-radius:50%;background:${color};border:1.5px solid ${hasImpact || isSelected ? color : "rgba(124,200,251,0.3)"};transition:transform .3s,box-shadow .3s;box-shadow:${hasImpact ? `0 0 ${size}px ${color}40` : "none"}`;
       el.appendChild(dot);
 
-      el.title = `${c.name} (${c.code})${
-        hasImpact ? ` — ${impact.stress_status} (${impact.stress_score.toFixed(0)})` : ""
-      }`;
+      el.title = `${c.name} (${c.code})${hasImpact ? ` — ${impact.stress_status} (${impact.stress_score.toFixed(0)})` : ""}`;
+      el.addEventListener("click", () => setSelectedCountryCode(c.code));
+      el.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.8)"; dot.style.boxShadow = `0 0 ${size + 8}px ${color}80`; });
+      el.addEventListener("mouseleave", () => { dot.style.transform = "scale(1)"; dot.style.boxShadow = hasImpact ? `0 0 ${size}px ${color}40` : "none"; });
 
-      el.addEventListener("click", () => {
-        setSelectedCountryCode(c.code);
-      });
-
-      // Hover effect on inner dot only (not the marker container)
-      el.addEventListener("mouseenter", () => {
-        dot.style.transform = "scale(1.5)";
-        dot.style.boxShadow = `0 0 ${size + 6}px ${color}80`;
-      });
-      el.addEventListener("mouseleave", () => {
-        dot.style.transform = "scale(1)";
-        dot.style.boxShadow = hasImpact ? `0 0 ${size}px ${color}40` : "none";
-      });
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([c.longitude, c.latitude])
-        .addTo(map);
-
-      markersRef.current.push(marker);
+      markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([c.longitude, c.latitude]).addTo(map));
     });
 
-    // Chokepoint markers (clickable)
     if (chokepoints) {
       chokepoints.forEach((cp) => {
         const el = document.createElement("div");
-        el.style.width = "14px";
-        el.style.height = "14px";
-        el.style.cursor = "pointer";
+        el.style.cssText = "width:14px;height:14px;cursor:pointer";
 
         const diamond = document.createElement("div");
-        diamond.style.width = "100%";
-        diamond.style.height = "100%";
-        diamond.style.borderRadius = "2px";
-        diamond.style.backgroundColor = "rgba(239, 68, 68, 0.7)";
-        diamond.style.border = "1.5px solid rgba(239, 68, 68, 0.9)";
-        diamond.style.transform = "rotate(45deg)";
-        diamond.style.transition = "transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease";
+        diamond.style.cssText = "width:100%;height:100%;border-radius:2px;background:rgba(239,68,68,.7);border:1.5px solid rgba(239,68,68,.9);transform:rotate(45deg);transition:transform .3s,box-shadow .3s,background .3s";
         el.appendChild(diamond);
 
         el.title = `${cp.name} (${cp.throughput_mbpd} Mb/d)`;
+        el.addEventListener("click", () => setSelectedChokepointId(cp.id));
+        el.addEventListener("mouseenter", () => { diamond.style.transform = "rotate(45deg) scale(1.5)"; diamond.style.boxShadow = "0 0 12px rgba(239,68,68,.6)"; diamond.style.background = "rgba(239,68,68,.9)"; });
+        el.addEventListener("mouseleave", () => { diamond.style.transform = "rotate(45deg) scale(1)"; diamond.style.boxShadow = "none"; diamond.style.background = "rgba(239,68,68,.7)"; });
 
-        el.addEventListener("click", () => {
-          setSelectedChokepointId(cp.id);
-        });
-
-        el.addEventListener("mouseenter", () => {
-          diamond.style.transform = "rotate(45deg) scale(1.5)";
-          diamond.style.boxShadow = "0 0 12px rgba(239, 68, 68, 0.6)";
-          diamond.style.backgroundColor = "rgba(239, 68, 68, 0.9)";
-        });
-        el.addEventListener("mouseleave", () => {
-          diamond.style.transform = "rotate(45deg) scale(1)";
-          diamond.style.boxShadow = "none";
-          diamond.style.backgroundColor = "rgba(239, 68, 68, 0.7)";
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([cp.longitude, cp.latitude])
-          .addTo(map);
-
-        markersRef.current.push(marker);
+        markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([cp.longitude, cp.latitude]).addTo(map));
       });
     }
-  }, [countries, chokepoints, impactMap, setSelectedCountryCode, setSelectedChokepointId]);
+  }, [countries, chokepoints, impactMap, selectedCountryCode, setSelectedCountryCode, setSelectedChokepointId]);
 
-  return (
-    <div ref={mapContainer} className="w-full h-full" />
-  );
+  return <div ref={mapContainer} className="w-full h-full" />;
 }

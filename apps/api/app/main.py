@@ -7,6 +7,7 @@ from app.api.routes_ref import router as ref_router
 from app.api.routes_scenarios import router as scenarios_router
 from app.api.routes_simulations import router as simulations_router
 from app.api.routes_news import router as news_router
+from app.api.routes_geo import router as geo_router
 from app.config import settings
 
 app = FastAPI(
@@ -31,6 +32,7 @@ app.include_router(ref_router, prefix=api_prefix)
 app.include_router(scenarios_router, prefix=api_prefix)
 app.include_router(simulations_router, prefix=api_prefix)
 app.include_router(news_router, prefix=api_prefix)
+app.include_router(geo_router, prefix=api_prefix)
 
 
 @app.get("/health")
