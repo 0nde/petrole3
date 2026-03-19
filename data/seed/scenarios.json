@@ -1,7 +1,9 @@
 [
   {
     "name": "Hormuz Full Blockade",
+    "name_fr": "Blocage total d'Ormuz",
     "description": "Complete blockade of the Strait of Hormuz — the world's most critical oil chokepoint handling ~21 Mb/d. Simulates a severe geopolitical crisis in the Persian Gulf.",
+    "description_fr": "Blocage complet du détroit d'Ormuz — le point de passage pétrolier le plus critique au monde (~21 Mb/j). Simule une crise géopolitique majeure dans le Golfe Persique.",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {}, "order_index": 0}
@@ -9,7 +11,9 @@
   },
   {
     "name": "Hormuz Partial Disruption (50%)",
+    "name_fr": "Perturbation partielle d'Ormuz (50 %)",
     "description": "Partial disruption of the Strait of Hormuz at 50% severity — representing mine threats, military tensions, or insurance cost escalation reducing traffic.",
+    "description_fr": "Perturbation partielle du détroit d'Ormuz à 50 % — menaces de mines, tensions militaires ou hausse des assurances réduisant le trafic.",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.5, "params": {}, "order_index": 0}
@@ -17,7 +21,9 @@
   },
   {
     "name": "Bab el-Mandeb Blockade",
+    "name_fr": "Blocage de Bab el-Mandeb",
     "description": "Full blockade of Bab el-Mandeb strait — as seen with Houthi attacks on shipping. Affects Red Sea / Suez traffic.",
+    "description_fr": "Blocage total du détroit de Bab el-Mandeb — comme lors des attaques houthies sur le trafic maritime. Affecte le trafic Mer Rouge / Suez.",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "bab_el_mandeb", "severity": 1.0, "params": {}, "order_index": 0}
@@ -25,7 +31,9 @@
   },
   {
     "name": "Malacca Strait Crisis",
+    "name_fr": "Crise du détroit de Malacca",
     "description": "Full blockade of the Strait of Malacca — the primary route for Middle Eastern oil to East Asia (~16 Mb/d throughput).",
+    "description_fr": "Blocage total du détroit de Malacca — route principale du pétrole moyen-oriental vers l'Asie de l'Est (~16 Mb/j).",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "malacca", "severity": 1.0, "params": {}, "order_index": 0}
@@ -33,7 +41,9 @@
   },
   {
     "name": "Russian Export Embargo to Europe",
+    "name_fr": "Embargo russe total vers l'Europe",
     "description": "Total Russian oil export embargo toward European countries — simulating a full energy decoupling scenario.",
+    "description_fr": "Embargo total des exportations pétrolières russes vers l'Europe — simulation d'un découplage énergétique complet.",
     "is_preset": true,
     "actions": [
       {"action_type": "embargo_targeted", "target_id": "RUS", "severity": 1.0, "params": {"target_regions": ["europe"]}, "order_index": 0}
@@ -41,7 +51,9 @@
   },
   {
     "name": "Saudi Production Collapse (-40%)",
+    "name_fr": "Effondrement de la production saoudienne (-40 %)",
     "description": "Major Saudi production disruption — simulating attacks on oil infrastructure (e.g., Abqaiq-style attack at larger scale).",
+    "description_fr": "Perturbation majeure de la production saoudienne — simulation d'attaques sur les infrastructures pétrolières (type Abqaiq à grande échelle).",
     "is_preset": true,
     "actions": [
       {"action_type": "production_change", "target_id": "SAU", "severity": 0.4, "params": {"delta_pct": -40}, "order_index": 0}
@@ -49,7 +61,9 @@
   },
   {
     "name": "Combined Gulf Crisis",
-    "description": "Severe multi-shock scenario: Hormuz blocked, Saudi production drops 30%, and strategic reserves are released globally.",
+    "name_fr": "Crise combinée du Golfe",
+    "description": "Severe multi-shock scenario: Hormuz blocked at 80%, Saudi production drops 30%, and strategic reserves are released globally.",
+    "description_fr": "Scénario multi-chocs sévère : Ormuz bloqué à 80 %, production saoudienne en baisse de 30 %, et libération mondiale des réserves stratégiques.",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.8, "params": {}, "order_index": 0},
@@ -59,7 +73,9 @@
   },
   {
     "name": "Suez Canal + Bab el-Mandeb Double Block",
-    "description": "Both Red Sea chokepoints blocked — cutting the Europe-Asia maritime shortcut.",
+    "name_fr": "Double blocage Suez + Bab el-Mandeb",
+    "description": "Both Red Sea chokepoints blocked — cutting the Europe-Asia maritime shortcut entirely.",
+    "description_fr": "Les deux goulets de la Mer Rouge bloqués — coupant totalement le raccourci maritime Europe-Asie.",
     "is_preset": true,
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "bab_el_mandeb", "severity": 1.0, "params": {}, "order_index": 0},
@@ -68,7 +84,9 @@
   },
   {
     "name": "Asia Demand Surge (+15%)",
+    "name_fr": "Hausse de la demande asiatique (+15 %)",
     "description": "Rapid demand increase in Asia-Pacific region (+15%) — simulating post-pandemic rebound or cold weather spike.",
+    "description_fr": "Hausse rapide de la demande en Asie-Pacifique (+15 %) — rebond post-pandémique ou vague de froid.",
     "is_preset": true,
     "actions": [
       {"action_type": "demand_change", "target_id": "asia_pacific", "severity": 0.15, "params": {"region_id": "asia_pacific", "delta_pct": 15}, "order_index": 0}
@@ -76,11 +94,58 @@
   },
   {
     "name": "Nigerian Supply Disruption + Bosphorus Block",
+    "name_fr": "Crise nigériane + blocage du Bosphore",
     "description": "Dual supply disruption: Nigerian production halved and Turkish Straits blocked.",
+    "description_fr": "Double perturbation : production nigériane réduite de moitié et détroits turcs bloqués.",
     "is_preset": true,
     "actions": [
       {"action_type": "production_change", "target_id": "NGA", "severity": 0.5, "params": {"delta_pct": -50}, "order_index": 0},
       {"action_type": "chokepoint_block", "target_id": "bosphorus", "severity": 1.0, "params": {}, "order_index": 1}
+    ]
+  },
+  {
+    "name": "Hormuz + Malacca Double Blockade",
+    "name_fr": "Double blocage Ormuz + Malacca",
+    "description": "Simultaneous blockade of the two most critical maritime chokepoints for oil — Hormuz and Malacca. Would devastate Asian energy supply.",
+    "description_fr": "Blocage simultané des deux détroits pétroliers les plus critiques — Ormuz et Malacca. Catastrophe pour l'approvisionnement énergétique asiatique.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "malacca", "severity": 1.0, "params": {}, "order_index": 1}
+    ]
+  },
+  {
+    "name": "Iran Sanctions + Hormuz Tensions",
+    "name_fr": "Sanctions iraniennes + tensions à Ormuz",
+    "description": "Iran oil embargo with retaliatory partial Hormuz disruption (40%) — a realistic escalation scenario in US-Iran tensions.",
+    "description_fr": "Embargo pétrolier iranien avec perturbation partielle d'Ormuz en représailles (40 %) — scénario d'escalade réaliste des tensions USA-Iran.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "embargo_targeted", "target_id": "IRN", "severity": 1.0, "params": {"target_regions": ["asia_pacific", "south_asia", "europe"]}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.4, "params": {}, "order_index": 1}
+    ]
+  },
+  {
+    "name": "European Supply Crisis (Russia + Libya)",
+    "name_fr": "Crise d'approvisionnement européenne (Russie + Libye)",
+    "description": "Full Russian embargo to Europe combined with Libyan civil war shutting down production — Europe loses two major suppliers simultaneously.",
+    "description_fr": "Embargo russe total vers l'Europe combiné à un arrêt de production libyen (guerre civile) — l'Europe perd deux fournisseurs majeurs simultanément.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "embargo_targeted", "target_id": "RUS", "severity": 1.0, "params": {"target_regions": ["europe"]}, "order_index": 0},
+      {"action_type": "production_change", "target_id": "LBY", "severity": 0.8, "params": {"delta_pct": -80}, "order_index": 1}
+    ]
+  },
+  {
+    "name": "Global Chokepoint Cascade",
+    "name_fr": "Cascade de blocages mondiaux",
+    "description": "Worst-case scenario: Hormuz, Bab el-Mandeb, and Malacca all disrupted simultaneously at 70% severity. Tests global resilience.",
+    "description_fr": "Pire scénario : Ormuz, Bab el-Mandeb et Malacca perturbés simultanément à 70 %. Teste la résilience mondiale.",
+    "is_preset": true,
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.7, "params": {}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "bab_el_mandeb", "severity": 0.7, "params": {}, "order_index": 1},
+      {"action_type": "chokepoint_block", "target_id": "malacca", "severity": 0.7, "params": {}, "order_index": 2}
     ]
   }
 ]

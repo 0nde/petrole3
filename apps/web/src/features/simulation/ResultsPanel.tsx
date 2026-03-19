@@ -1,5 +1,6 @@
 import { useAppStore } from "../../store/appStore";
 import { useI18n } from "../../i18n/useI18n";
+import { stressConsequences } from "../../data/stressConsequences";
 import type { CountryImpact, StressStatus } from "../../types";
 
 const STRESS_BG: Record<StressStatus, string> = {
@@ -122,9 +123,10 @@ function CountryRow({
   showDetail: boolean;
   onClick: () => void;
 }) {
-  const { countryName, stressLabel, t } = useI18n();
+  const { countryName, stressLabel, t, lang } = useI18n();
   const ci = impact;
   const coveragePct = Math.min(ci.demand_coverage_ratio * 100, 100);
+  const sc = stressConsequences[ci.stress_status];
 
   return (
     <button
@@ -158,12 +160,26 @@ function CountryRow({
         </span>
       </div>
 
+      {/* Brief consequence summary — always visible */}
+      {sc && ci.stress_status !== "stable" && (
+        <p className="mt-1 text-[10px] text-petro-500 leading-relaxed line-clamp-2">
+          {sc.consequences[lang as "fr" | "en"][0]}
+        </p>
+      )}
+
       {showDetail && (
-        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-petro-500">
-          <div>{t("results.production")}: {ci.production_before.toFixed(2)} → {ci.production_after.toFixed(2)} {t("country.mbpd")}</div>
-          <div>{t("results.imports")}: {ci.imports_before.toFixed(2)} → {ci.imports_after.toFixed(2)} {t("country.mbpd")}</div>
-          <div>{t("results.exports")}: {ci.exports_before.toFixed(2)} → {ci.exports_after.toFixed(2)} {t("country.mbpd")}</div>
-          <div>{t("results.reserves_used")}: {ci.reserve_mobilized_mbpd.toFixed(2)} {t("country.mbpd")}</div>
+        <div className="mt-2 space-y-1.5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-petro-500">
+            <div>{t("results.production")}: {ci.production_before.toFixed(2)} → {ci.production_after.toFixed(2)} {t("country.mbpd")}</div>
+            <div>{t("results.imports")}: {ci.imports_before.toFixed(2)} → {ci.imports_after.toFixed(2)} {t("country.mbpd")}</div>
+            <div>{t("results.exports")}: {ci.exports_before.toFixed(2)} → {ci.exports_after.toFixed(2)} {t("country.mbpd")}</div>
+            <div>{t("results.reserves_used")}: {ci.reserve_mobilized_mbpd.toFixed(2)} {t("country.mbpd")}</div>
+          </div>
+          {sc && (
+            <div className="text-[10px] text-petro-500 italic">
+              {sc.oilPriceRange[lang as "fr" | "en"]}
+            </div>
+          )}
         </div>
       )}
     </button>

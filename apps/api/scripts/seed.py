@@ -29,9 +29,27 @@ def load_json(filename: str) -> list[dict]:
 
 
 def seed(session: Session) -> None:
+    # Clear dependent tables first (respect FK order)
+    print("Clearing existing data...")
+    session.execute(text("DELETE FROM simulation_steps"))
+    session.execute(text("DELETE FROM simulation_flow_impacts"))
+    session.execute(text("DELETE FROM simulation_country_impacts"))
+    session.execute(text("DELETE FROM simulation_runs"))
+    session.execute(text("DELETE FROM scenario_actions"))
+    session.execute(text("DELETE FROM scenarios WHERE is_preset = true"))
+    session.execute(text("DELETE FROM source_provenance"))
+    session.execute(text("DELETE FROM data_snapshots"))
+    session.execute(text("DELETE FROM ports"))
+    session.execute(text("DELETE FROM flows"))
+    session.execute(text("DELETE FROM route_chokepoints"))
+    session.execute(text("DELETE FROM routes"))
+    session.execute(text("DELETE FROM chokepoints"))
+    session.execute(text("DELETE FROM countries"))
+    session.execute(text("DELETE FROM regions"))
+    session.execute(text("DELETE FROM products"))
+
     # 1. Products
     print("Seeding products...")
-    session.execute(text("DELETE FROM products"))
     for p in [{"id": "crude", "name": "Crude Oil"}, {"id": "refined", "name": "Refined Products"}]:
         session.execute(
             text("INSERT INTO products (id, name) VALUES (:id, :name)"),
@@ -40,7 +58,6 @@ def seed(session: Session) -> None:
 
     # 2. Regions
     print("Seeding regions...")
-    session.execute(text("DELETE FROM regions CASCADE"))
     for r in load_json("regions.json"):
         session.execute(
             text("INSERT INTO regions (id, name) VALUES (:id, :name)"),
@@ -49,7 +66,6 @@ def seed(session: Session) -> None:
 
     # 3. Countries
     print("Seeding countries...")
-    session.execute(text("DELETE FROM countries CASCADE"))
     for c in load_json("countries.json"):
         session.execute(
             text("""
@@ -68,7 +84,6 @@ def seed(session: Session) -> None:
 
     # 4. Chokepoints
     print("Seeding chokepoints...")
-    session.execute(text("DELETE FROM chokepoints CASCADE"))
     for cp in load_json("chokepoints.json"):
         session.execute(
             text("""
@@ -80,8 +95,6 @@ def seed(session: Session) -> None:
 
     # 5. Routes and route_chokepoints
     print("Seeding routes...")
-    session.execute(text("DELETE FROM route_chokepoints"))
-    session.execute(text("DELETE FROM routes CASCADE"))
     for r in load_json("routes.json"):
         session.execute(
             text("""
@@ -101,7 +114,6 @@ def seed(session: Session) -> None:
 
     # 6. Flows
     print("Seeding flows...")
-    session.execute(text("DELETE FROM flows CASCADE"))
     for f in load_json("flows.json"):
         session.execute(
             text("""
@@ -113,9 +125,6 @@ def seed(session: Session) -> None:
 
     # 7. Scenarios (presets)
     print("Seeding preset scenarios...")
-    # Don't delete user scenarios, only presets
-    session.execute(text("DELETE FROM scenario_actions WHERE scenario_id IN (SELECT id FROM scenarios WHERE is_preset = true)"))
-    session.execute(text("DELETE FROM scenarios WHERE is_preset = true"))
     for s in load_json("scenarios.json"):
         scenario_id = uuid.uuid4()
         session.execute(
@@ -144,7 +153,6 @@ def seed(session: Session) -> None:
 
     # 8. Data snapshot record
     print("Seeding data snapshot...")
-    session.execute(text("DELETE FROM data_snapshots"))
     session.execute(
         text("""
             INSERT INTO data_snapshots (id, name, source, period, notes)

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
 import { useCountries, useFlows } from "../../api/hooks";
 import { useI18n } from "../../i18n/useI18n";
+import { stressConsequences } from "../../data/stressConsequences";
 import type { StressStatus } from "../../types";
 
 const STATUS_BG: Record<StressStatus, string> = {
@@ -264,6 +265,35 @@ export function CountryPanel() {
               </span>
             </div>
           </div>
+
+          {/* Pedagogical stress explanation */}
+          {(() => {
+            const sc = stressConsequences[impact.stress_status];
+            if (!sc) return null;
+            const l = lang as "fr" | "en";
+            return (
+              <div className="mb-3 space-y-2">
+                <p className="text-xs text-petro-300 leading-relaxed">{sc.summary[l]}</p>
+                <div className="space-y-1">
+                  {sc.consequences[l].slice(0, 4).map((c, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-[11px] text-petro-400">
+                      <span className="mt-0.5 shrink-0">•</span>
+                      <span>{c}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded bg-petro-800/60 text-petro-400">
+                    {lang === "fr" ? "Impact prix" : "Price impact"}: {sc.oilPriceRange[l]}
+                  </span>
+                </div>
+                <div className="bg-petro-900/50 rounded p-2 border border-petro-700/30">
+                  <div className="text-[10px] text-petro-500 mb-0.5">{lang === "fr" ? "Précédent historique" : "Historical precedent"}</div>
+                  <p className="text-[11px] text-petro-400 leading-relaxed italic">{sc.historicalExample[l]}</p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Supply balance */}
           <div className="panel-header mb-2">{t("country.balance")}</div>

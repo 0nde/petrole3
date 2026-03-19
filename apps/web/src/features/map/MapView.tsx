@@ -23,6 +23,7 @@ export function MapView() {
   const { data: chokepoints } = useChokepoints();
   const countryImpacts = useAppStore((s) => s.countryImpacts);
   const setSelectedCountryCode = useAppStore((s) => s.setSelectedCountryCode);
+  const setSelectedChokepointId = useAppStore((s) => s.setSelectedChokepointId);
 
   // Build impact lookup
   const impactMap = useMemo(() => {
@@ -42,7 +43,7 @@ export function MapView() {
       zoom: 2.2,
       minZoom: 1.5,
       maxZoom: 8,
-      attributionControl: true,
+      attributionControl: false,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "bottom-left");
@@ -114,17 +115,40 @@ export function MapView() {
       markersRef.current.push(marker);
     });
 
-    // Chokepoint markers
+    // Chokepoint markers (clickable)
     if (chokepoints) {
       chokepoints.forEach((cp) => {
         const el = document.createElement("div");
-        el.style.width = "10px";
-        el.style.height = "10px";
-        el.style.borderRadius = "2px";
-        el.style.backgroundColor = "rgba(239, 68, 68, 0.7)";
-        el.style.border = "1px solid rgba(239, 68, 68, 0.9)";
-        el.style.transform = "rotate(45deg)";
+        el.style.width = "14px";
+        el.style.height = "14px";
+        el.style.cursor = "pointer";
+
+        const diamond = document.createElement("div");
+        diamond.style.width = "100%";
+        diamond.style.height = "100%";
+        diamond.style.borderRadius = "2px";
+        diamond.style.backgroundColor = "rgba(239, 68, 68, 0.7)";
+        diamond.style.border = "1.5px solid rgba(239, 68, 68, 0.9)";
+        diamond.style.transform = "rotate(45deg)";
+        diamond.style.transition = "transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease";
+        el.appendChild(diamond);
+
         el.title = `${cp.name} (${cp.throughput_mbpd} Mb/d)`;
+
+        el.addEventListener("click", () => {
+          setSelectedChokepointId(cp.id);
+        });
+
+        el.addEventListener("mouseenter", () => {
+          diamond.style.transform = "rotate(45deg) scale(1.5)";
+          diamond.style.boxShadow = "0 0 12px rgba(239, 68, 68, 0.6)";
+          diamond.style.backgroundColor = "rgba(239, 68, 68, 0.9)";
+        });
+        el.addEventListener("mouseleave", () => {
+          diamond.style.transform = "rotate(45deg) scale(1)";
+          diamond.style.boxShadow = "none";
+          diamond.style.backgroundColor = "rgba(239, 68, 68, 0.7)";
+        });
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([cp.longitude, cp.latitude])
@@ -133,7 +157,7 @@ export function MapView() {
         markersRef.current.push(marker);
       });
     }
-  }, [countries, chokepoints, impactMap, setSelectedCountryCode]);
+  }, [countries, chokepoints, impactMap, setSelectedCountryCode, setSelectedChokepointId]);
 
   return (
     <div ref={mapContainer} className="w-full h-full" />

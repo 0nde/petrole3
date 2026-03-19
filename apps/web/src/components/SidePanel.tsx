@@ -4,6 +4,7 @@ import { ScenarioPanel } from "../features/scenarios/ScenarioPanel";
 import { ResultsPanel } from "../features/simulation/ResultsPanel";
 import { JournalPanel } from "../features/simulation/JournalPanel";
 import { CountryPanel } from "../features/simulation/CountryPanel";
+import { ChokepointPanel } from "../features/simulation/ChokepointPanel";
 import type { ActivePanel } from "../types";
 import type { TranslationKey } from "../i18n/translations";
 
@@ -48,6 +49,7 @@ export function SidePanel() {
         {activePanel === "results" && <ResultsPanel />}
         {activePanel === "journal" && <JournalPanel />}
         {activePanel === "country" && <CountryPanel />}
+        {activePanel === "chokepoint" && <ChokepointPanel />}
       </div>
     </div>
   );
