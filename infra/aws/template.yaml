@@ -27,8 +27,8 @@ Parameters:
     Default: "arn:aws:acm:us-east-1:595235126112:certificate/067b0d8a-8b7c-402b-b0ea-9236748d3d68"
   AllowedIPs:
     Type: CommaDelimitedList
-    Default: "82.64.202.39/32"
-    Description: "Comma-separated list of allowed CIDR blocks"
+    Default: "0.0.0.0/0"
+    Description: "Managed via GitHub Actions workflow 'Update IP Whitelist'"
 
 Resources:
   # ── Backend: Lambda + API Gateway ──

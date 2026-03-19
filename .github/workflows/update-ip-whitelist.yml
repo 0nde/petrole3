@@ -1,0 +1,100 @@
+name: Update IP Whitelist
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for IP update (optional)"
+        required: false
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  update-ip:
+    name: Update CloudFront IP Restriction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-west-3
+
+      - name: Generate CloudFront Function code
+        run: |
+          # Build the JS array from the secret
+          IFS=',' read -ra IPS <<< "${{ secrets.ALLOWED_IPS }}"
+          IP_ARRAY=""
+          for ip in "${IPS[@]}"; do
+            ip=$(echo "$ip" | xargs)  # trim whitespace
+            if [ -n "$IP_ARRAY" ]; then IP_ARRAY="$IP_ARRAY,"; fi
+            IP_ARRAY="$IP_ARRAY'$ip'"
+          done
+
+          cat > /tmp/cf-function.js << 'FUNCEOF'
+          function handler(event) {
+            var allowedCIDRs = [PLACEHOLDER_IPS];
+            var clientIP = event.viewer.ip;
+            var allowed = false;
+            for (var i = 0; i < allowedCIDRs.length; i++) {
+              var cidr = allowedCIDRs[i];
+              var parts = cidr.split('/');
+              var ip = parts[0];
+              var mask = parseInt(parts[1] || '32');
+              if (mask === 32 && clientIP === ip) { allowed = true; break; }
+              if (mask < 32) {
+                var ipNum = ip.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
+                var clientNum = clientIP.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
+                var m = (~0 << (32 - mask)) >>> 0;
+                if ((ipNum & m) === (clientNum & m)) { allowed = true; break; }
+              }
+            }
+            if (!allowed) {
+              return {
+                statusCode: 403,
+                statusDescription: 'Forbidden',
+                body: { encoding: 'text', data: 'Access denied' }
+              };
+            }
+            return event.request;
+          }
+          FUNCEOF
+
+          # Replace placeholder with actual IPs
+          sed -i "s|PLACEHOLDER_IPS|$IP_ARRAY|g" /tmp/cf-function.js
+          echo "Generated function with IPs: $IP_ARRAY"
+          cat /tmp/cf-function.js
+
+      - name: Update CloudFront Function
+        run: |
+          # Get current ETag (required for update)
+          ETAG=$(aws cloudfront describe-function \
+            --name petrosim-ip-restriction \
+            --query "ETag" --output text)
+
+          # Update the function code
+          aws cloudfront update-function \
+            --name petrosim-ip-restriction \
+            --function-config '{"Comment":"IP whitelist for PetroSim - updated via GitHub Actions","Runtime":"cloudfront-js-2.0"}' \
+            --function-code fileb:///tmp/cf-function.js \
+            --if-match "$ETAG"
+
+          # Publish the updated function
+          ETAG=$(aws cloudfront describe-function \
+            --name petrosim-ip-restriction \
+            --query "ETag" --output text)
+
+          aws cloudfront publish-function \
+            --name petrosim-ip-restriction \
+            --if-match "$ETAG"
+
+          echo "✅ CloudFront Function updated and published"
+          echo "Allowed IPs: ${{ secrets.ALLOWED_IPS }}"
+          echo "Reason: ${{ github.event.inputs.reason || 'No reason provided' }}"
