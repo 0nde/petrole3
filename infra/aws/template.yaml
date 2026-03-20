@@ -18,13 +18,13 @@ Parameters:
     NoEcho: true
   DomainName:
     Type: String
-    Default: petrosim.joyon.org
+    Description: "Custom domain (e.g. petrosim.example.com)"
   HostedZoneId:
     Type: String
-    Default: Z0072050FBUWUK0K3QKO
+    Description: "Route 53 hosted zone ID"
   CertificateArn:
     Type: String
-    Default: "arn:aws:acm:us-east-1:595235126112:certificate/067b0d8a-8b7c-402b-b0ea-9236748d3d68"
+    Description: "ACM certificate ARN (must be in us-east-1)"
   AllowedIPs:
     Type: CommaDelimitedList
     Default: "0.0.0.0/0"

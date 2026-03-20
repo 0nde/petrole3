@@ -3,7 +3,7 @@
 [![CI](https://github.com/0nde/petrole3/actions/workflows/ci.yml/badge.svg)](https://github.com/0nde/petrole3/actions/workflows/ci.yml)
 [![CD](https://github.com/0nde/petrole3/actions/workflows/cd.yml/badge.svg)](https://github.com/0nde/petrole3/actions/workflows/cd.yml)
 
-> **Live**: [petrosim.joyon.org](https://petrosim.joyon.org) (IP-restricted)
+> **Live**: hosted on AWS (IP-restricted, custom domain via Route 53)
 
 A pedagogical, bilingual (FR/EN) simulation platform for analyzing the impact of geopolitical shocks on global oil logistics. Built with verified 2023 data from EIA, IEA, OPEC, and national agencies.
 
@@ -50,8 +50,8 @@ cd apps/web && pnpm install && pnpm dev        # Frontend on :5173
 
 | Environment | URL | Branch | Deploys on |
 |-------------|-----|--------|------------|
-| **Production** | `petrosim.joyon.org` | `main` | Push to main (after CI passes) |
-| **Development** | `dev-petrosim.joyon.org` | Any non-main branch | Push to any branch |
+| **Production** | Custom domain (secret `DOMAIN`) | `main` | Push to main (after CI passes) |
+| **Development** | Custom domain (secret `DEV_DOMAIN`) | Any non-main branch | Push to any branch |
 
 ## Simulation Rules
 

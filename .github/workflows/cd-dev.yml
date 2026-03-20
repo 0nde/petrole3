@@ -54,7 +54,8 @@ jobs:
             --parameter-overrides \
               "DatabaseUrl=${{ secrets.DEV_DATABASE_URL }}" \
               "SyncDatabaseUrl=${{ secrets.DEV_SYNC_DATABASE_URL }}" \
-              "DomainName=dev-petrosim.joyon.org" \
+              "DomainName=${{ secrets.DEV_DOMAIN }}" \
+              "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}" \
               "CertificateArn=${{ secrets.DEV_CERTIFICATE_ARN }}"
 
   deploy-dev-frontend:
