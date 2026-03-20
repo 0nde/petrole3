@@ -164,6 +164,12 @@ class TestGoldenNoShock:
         """Without shocks, flows should mostly remain at baseline (except domestic priority)."""
         result = engine.run(**seed_world, actions=[])
 
-        severe_losses = [f for f in result.flow_impacts if f.loss_pct > 50]
-        # Allow some domestic priority adjustments but no massive losses
-        assert len(severe_losses) < 5, f"Too many severe losses in baseline: {len(severe_losses)}"
+        severe_losses = [
+            f for f in result.flow_impacts
+            if f.loss_pct > 50
+            and not any("Domestic priority" in r for r in f.loss_reasons)
+        ]
+        # Domestic priority caps are expected; only flag non-priority losses
+        assert len(severe_losses) == 0, (
+            f"Unexpected severe losses in baseline (excl. domestic priority): {severe_losses}"
+        )
