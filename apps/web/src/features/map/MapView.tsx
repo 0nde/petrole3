@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useAppStore } from "../../store/appStore";
@@ -12,12 +12,15 @@ const STRESS_COLORS: Record<StressStatus, string> = {
   emergency: "#ef4444",
 };
 
-const NO_COLOR = "transparent";
-const SELECTED_COLOR = "#3b82f6";
 const GEOJSON_BACKEND = "/api/v1/geo/countries";
 const GEOJSON_CDN =
   "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+/** ISO_A3_EH with fallback to ISO_A3 (handles -99 disputed territories in Natural Earth). */
+const ISO_PROP: maplibregl.ExpressionSpecification = [
+  "coalesce", ["get", "ISO_A3_EH"], ["get", "ISO_A3"],
+];
 
 /**
  * Load country boundary GeoJSON with fallback.
@@ -58,69 +61,27 @@ async function loadCountryGeoJSON(): Promise<any | null> {
   }
 }
 
-/**
- * Build a MapLibre paint expression that colors countries by stress status
- * and highlights the selected country in blue.
- *
- * Uses ["case", ...] instead of ["match", ["coalesce", ...], ...] because
- * MapLibre v5 can silently reject match expressions with coalesce inputs.
- */
-function buildFillColor(
+/** Build a match expression for country fill colors (v1.0.0 proven approach). */
+function buildCountryColorExpr(
   impactMap: Map<string, CountryImpact>,
   selectedCode: string | null,
-): unknown {
-  // case expression: ["case", cond1, color1, cond2, color2, ..., fallback]
-  const parts: unknown[] = ["case"];
-
-  // Stress colors for simulated countries
+): maplibregl.ExpressionSpecification {
+  const expr: unknown[] = ["match", ISO_PROP];
   impactMap.forEach((ci, code) => {
-    parts.push(
-      ["any",
-        ["==", ["get", "ISO_A3_EH"], code],
-        ["==", ["get", "ISO_A3"], code],
-      ],
-      STRESS_COLORS[ci.stress_status],
-    );
+    expr.push(code, STRESS_COLORS[ci.stress_status]);
   });
-
-  // Selected country (blue highlight) if not already in impacts
   if (selectedCode && !impactMap.has(selectedCode)) {
-    parts.push(
-      ["any",
-        ["==", ["get", "ISO_A3_EH"], selectedCode],
-        ["==", ["get", "ISO_A3"], selectedCode],
-      ],
-      SELECTED_COLOR,
-    );
+    expr.push(selectedCode, "#3b82f6");
   }
-
-  // If we have no conditions, just return transparent
-  if (parts.length === 1) return NO_COLOR;
-
-  parts.push(NO_COLOR); // fallback
-  return parts;
-}
-
-function buildOutlineColor(selectedCode: string | null): unknown {
-  if (!selectedCode) return NO_COLOR;
-  return [
-    "case",
-    ["any",
-      ["==", ["get", "ISO_A3_EH"], selectedCode],
-      ["==", ["get", "ISO_A3"], selectedCode],
-    ],
-    SELECTED_COLOR,
-    NO_COLOR,
-  ];
+  expr.push("transparent");
+  return expr as maplibregl.ExpressionSpecification;
 }
 
 export function MapView() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  // useState (not useRef) so that when GeoJSON loads, a re-render triggers
-  // the color useEffect which was previously skipped.
-  const [geoLoaded, setGeoLoaded] = useState(false);
+  const geoLoadedRef = useRef(false);
 
   const { data: countries } = useCountries();
   const { data: chokepoints } = useChokepoints();
@@ -134,10 +95,6 @@ export function MapView() {
     countryImpacts.forEach((ci) => map.set(ci.country_code, ci));
     return map;
   }, [countryImpacts]);
-
-  const handleCountryClick = useCallback((code: string) => {
-    setSelectedCountryCode(code);
-  }, [setSelectedCountryCode]);
 
   // Initialize map + load country boundaries for choropleth
   useEffect(() => {
@@ -172,7 +129,7 @@ export function MapView() {
             id: "country-fill",
             type: "fill",
             source: "country-boundaries",
-            paint: { "fill-color": NO_COLOR, "fill-opacity": 0.55 },
+            paint: { "fill-color": "transparent", "fill-opacity": 0.35 },
           },
           firstSymbolLayer?.id,
         );
@@ -181,35 +138,37 @@ export function MapView() {
             id: "country-outline",
             type: "line",
             source: "country-boundaries",
-            paint: { "line-color": NO_COLOR, "line-width": 2, "line-opacity": 0.9 },
+            paint: { "line-color": "transparent", "line-width": 1.5, "line-opacity": 0.6 },
           },
           firstSymbolLayer?.id,
         );
 
         map.on("click", "country-fill", (e) => {
-          const props = e.features?.[0]?.properties;
-          const code = props?.ISO_A3_EH || props?.ISO_A3;
-          if (code && code !== "-99") handleCountryClick(code);
+          const code = e.features?.[0]?.properties?.ISO_A3_EH || e.features?.[0]?.properties?.ISO_A3;
+          if (code && code !== "-99") setSelectedCountryCode(code);
         });
         map.on("mouseenter", "country-fill", () => { map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", "country-fill", () => { map.getCanvas().style.cursor = ""; });
 
-        // useState triggers re-render → color useEffect runs
-        setGeoLoaded(true);
+        geoLoadedRef.current = true;
       }
     });
 
     return () => { map.remove(); mapRef.current = null; };
-  }, [handleCountryClick]);
+  }, [setSelectedCountryCode]);
 
-  // Update country fill colors when impacts, selection, or geo-load changes
+  // Update country fill colors when impacts or selection changes
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !geoLoaded || !map.getLayer("country-fill")) return;
+    if (!map || !geoLoadedRef.current || !map.getLayer("country-fill")) return;
 
-    map.setPaintProperty("country-fill", "fill-color", buildFillColor(impactMap, selectedCountryCode));
-    map.setPaintProperty("country-outline", "line-color", buildOutlineColor(selectedCountryCode));
-  }, [impactMap, selectedCountryCode, geoLoaded]);
+    map.setPaintProperty("country-fill", "fill-color", buildCountryColorExpr(impactMap, selectedCountryCode));
+
+    const outlineExpr: maplibregl.ExpressionSpecification = selectedCountryCode
+      ? ["case", ["==", ISO_PROP, selectedCountryCode], "#3b82f6", "transparent"]
+      : "transparent" as unknown as maplibregl.ExpressionSpecification;
+    map.setPaintProperty("country-outline", "line-color", outlineExpr);
+  }, [impactMap, selectedCountryCode]);
 
   // Update markers (country dots + chokepoint diamonds)
   useEffect(() => {
@@ -223,7 +182,7 @@ export function MapView() {
       const impact = impactMap.get(c.code);
       const hasImpact = !!impact;
       const isSelected = c.code === selectedCountryCode;
-      const color = hasImpact ? STRESS_COLORS[impact.stress_status] : isSelected ? SELECTED_COLOR : "#7cc8fb";
+      const color = hasImpact ? STRESS_COLORS[impact.stress_status] : isSelected ? "#3b82f6" : "#7cc8fb";
       const size = hasImpact ? Math.max(10, Math.min(22, 10 + impact.stress_score * 0.12)) : isSelected ? 14 : 10;
 
       const el = document.createElement("div");
@@ -234,7 +193,7 @@ export function MapView() {
       el.appendChild(dot);
 
       el.title = `${c.name} (${c.code})${hasImpact ? ` — ${impact.stress_status} (${impact.stress_score.toFixed(0)})` : ""}`;
-      el.addEventListener("click", () => handleCountryClick(c.code));
+      el.addEventListener("click", () => setSelectedCountryCode(c.code));
       el.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.8)"; dot.style.boxShadow = `0 0 ${size + 8}px ${color}80`; });
       el.addEventListener("mouseleave", () => { dot.style.transform = "scale(1)"; dot.style.boxShadow = hasImpact ? `0 0 ${size}px ${color}40` : "none"; });
 
@@ -258,7 +217,7 @@ export function MapView() {
         markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([cp.longitude, cp.latitude]).addTo(map));
       });
     }
-  }, [countries, chokepoints, impactMap, selectedCountryCode, handleCountryClick, setSelectedChokepointId]);
+  }, [countries, chokepoints, impactMap, selectedCountryCode, setSelectedCountryCode, setSelectedChokepointId]);
 
   return <div ref={mapContainer} className="w-full h-full" />;
 }
