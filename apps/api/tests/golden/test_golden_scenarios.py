@@ -133,7 +133,11 @@ class TestGoldenSaudiProductionDrop:
 
         sau = next((c for c in result.country_impacts if c.country_code == "SAU"), None)
         assert sau is not None
-        assert abs(sau.production_after - 6.3) < 0.1, f"Expected ~6.3, got {sau.production_after}"
+        # -40% → 60% of baseline should remain (robust against seed data changes)
+        expected = sau.production_before * 0.6
+        assert abs(sau.production_after - expected) < 0.1, (
+            f"Expected ~{expected:.2f} (60% of {sau.production_before}), got {sau.production_after}"
+        )
 
     def test_global_supply_loss(self, seed_world):
         actions = [{"action_type": "production_change", "target_id": "SAU", "severity": 0.4,
