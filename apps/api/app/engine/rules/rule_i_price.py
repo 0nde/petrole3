@@ -23,15 +23,15 @@ def apply_rule_i(state: SimulationState) -> None:
             description="No baseline flows — price impact cannot be calculated",
             detail={"error": "no_baseline_flows"},
         )
-        state._global_supply_loss_pct = 0.0  # type: ignore[attr-defined]
-        state._estimated_price_impact_pct = 0.0  # type: ignore[attr-defined]
+        state.global_supply_loss_pct = 0.0
+        state.estimated_price_impact_pct = 0.0
         return
 
     supply_loss_pct = (total_baseline - total_current) / total_baseline * 100
     price_impact_pct = supply_loss_pct * settings.PRICE_ELASTICITY_FACTOR
 
-    state._global_supply_loss_pct = supply_loss_pct  # type: ignore[attr-defined]
-    state._estimated_price_impact_pct = price_impact_pct  # type: ignore[attr-defined]
+    state.global_supply_loss_pct = supply_loss_pct
+    state.estimated_price_impact_pct = price_impact_pct
 
     state.add_step(
         rule_id="I",

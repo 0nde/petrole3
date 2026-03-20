@@ -36,7 +36,6 @@ jobs:
         run: npx tsc --noEmit --pretty
       - name: Unit tests
         run: pnpm test
-        continue-on-error: true
 
   # ── Backend ──
   backend:
@@ -55,7 +54,5 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Python lint (ruff)
         run: pip install ruff && ruff check app/ scripts/
-        continue-on-error: true
       - name: Unit tests
-        run: pytest -x -q --tb=short 2>/dev/null || echo "No tests to run"
-        continue-on-error: true
+        run: pytest -x -q --tb=short
