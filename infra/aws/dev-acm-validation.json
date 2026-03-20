@@ -1,0 +1,17 @@
+{
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_4d3b654ace7a04f28bb0b5cec7d0cd9c.dev-petrosim.joyon.org.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "_6ff7dea9f40d82bec90dd2630effbd18.jkddzztszm.acm-validations.aws."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,29 +1,28 @@
-name: CD — Deploy to AWS
+name: CD Dev — Deploy to dev-petrosim.joyon.org
 
 on:
   push:
-    branches: [main]
+    branches-ignore: [main]
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: deploy
-  cancel-in-progress: false
+  group: deploy-dev
+  cancel-in-progress: true
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  # Wait for CI to pass before deploying
   ci:
     name: CI Gate
     uses: ./.github/workflows/ci.yml
 
-  deploy-backend:
-    name: Deploy Backend (Lambda)
+  deploy-dev-backend:
+    name: Deploy Dev Backend (Lambda)
     needs: ci
     runs-on: ubuntu-latest
     steps:
@@ -41,11 +40,11 @@ jobs:
       - name: SAM Build
         run: sam build --template-file infra/aws/template.yaml
 
-      - name: SAM Deploy
+      - name: SAM Deploy (dev)
         run: |
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
-            --stack-name petrosim \
+            --stack-name petrosim-dev \
             --region eu-west-3 \
             --capabilities CAPABILITY_IAM \
             --resolve-image-repos \
@@ -53,13 +52,15 @@ jobs:
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
-              "DatabaseUrl=${{ secrets.DATABASE_URL }}" \
-              "SyncDatabaseUrl=${{ secrets.SYNC_DATABASE_URL }}"
+              "DatabaseUrl=${{ secrets.DEV_DATABASE_URL }}" \
+              "SyncDatabaseUrl=${{ secrets.DEV_SYNC_DATABASE_URL }}" \
+              "DomainName=dev-petrosim.joyon.org" \
+              "CertificateArn=${{ secrets.DEV_CERTIFICATE_ARN }}"
 
-  deploy-frontend:
-    name: Deploy Frontend (S3 + CloudFront)
+  deploy-dev-frontend:
+    name: Deploy Dev Frontend (S3 + CloudFront)
+    needs: deploy-dev-backend
     runs-on: ubuntu-latest
-    needs: deploy-backend
     defaults:
       run:
         working-directory: apps/web
@@ -85,16 +86,16 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }}/ \
+          aws s3 sync dist/ s3://${{ secrets.DEV_S3_BUCKET }}/ \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "index.html" --exclude "*.json"
-          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET }}/index.html \
+          aws s3 cp dist/index.html s3://${{ secrets.DEV_S3_BUCKET }}/index.html \
             --cache-control "public, max-age=60" \
             --content-type "text/html"
 
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id ${{ secrets.DEV_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"

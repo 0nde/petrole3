@@ -1,110 +1,57 @@
-# PetroSim — Geoenergy Simulation Workbench
+# PetroSim — Oil Geopolitics Simulator
 
-A deterministic, explainable simulation platform for analyzing the impact of geopolitical shocks on global oil logistics.
+[![CI](https://github.com/0nde/petrole3/actions/workflows/ci.yml/badge.svg)](https://github.com/0nde/petrole3/actions/workflows/ci.yml)
+[![CD](https://github.com/0nde/petrole3/actions/workflows/cd.yml/badge.svg)](https://github.com/0nde/petrole3/actions/workflows/cd.yml)
 
-## What is PetroSim?
+> **Live**: [petrosim.joyon.org](https://petrosim.joyon.org) (IP-restricted)
 
-PetroSim is a "simplified but serious digital twin" of global oil flows. It lets analysts explore questions like:
+A pedagogical, bilingual (FR/EN) simulation platform for analyzing the impact of geopolitical shocks on global oil logistics. Built with verified 2023 data from EIA, IEA, OPEC, and national agencies.
 
-- What happens if the Strait of Hormuz is blocked?
-- Which countries become critical if Russian exports to Europe stop?
-- How does a Saudi production drop propagate through refining hubs?
-- What strategic reserves can absorb a crisis?
+## Features
 
-## Architecture
-
-- **Monorepo** with `apps/web` (React 19 + Vite), `apps/api` (FastAPI), shared contracts
-- **PostgreSQL + PostGIS** for geospatial data
-- **Deterministic simulation engine** with full causal trace
-- **Dual execution**: fast Web Worker preview + authoritative backend engine
+- **Interactive map** with country choropleth fills (colored by stress level after simulation)
+- **14 preset scenarios** (Hormuz blockade, Russian embargo, Gulf crisis, etc.) — bilingual FR/EN
+- **Multi-scenario combination** — select 2+ scenarios and run their combined effects
+- **Pedagogical chokepoint profiles** — detailed history, strategic importance, real-world impact for 8 major chokepoints
+- **Real-economy impact timeline** — how an oil crisis cascades through 12 sectors (aviation, food, pharma, etc.) over days/weeks/months
+- **Oil news feed** — live RSS from EIA + OilPrice.com (free, no API key)
+- **64 countries, 157 bilateral flows, 30 maritime/pipeline routes** — all verified against official sources
+- **Trade relationship tooltips** — hover on any supplier/client to understand why they trade oil
 
 ## Quick Start
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+
-- Python 3.12+
-- pnpm 9+
+### One-command setup (Windows)
+```powershell
+.\start.ps1          # Starts Docker DB + API + Frontend
+.\start.ps1 -Seed    # Force re-seed the database
+.\start.ps1 -Stop    # Stop all services
+```
 
-### Development
-
+### Manual setup
 ```bash
-# Start infrastructure (PostgreSQL)
-docker compose up -d
-
-# Backend
-cd apps/api
-python -m venv .venv
-.venv/Scripts/activate  # Windows
-pip install -r requirements.txt
-alembic upgrade head
-python -m scripts.seed
-uvicorn app.main:app --reload
-
-# Frontend
-cd apps/web
-pnpm install
-pnpm dev
+docker compose up -d                          # PostgreSQL
+cd apps/api && pip install -r requirements.txt # Backend deps
+alembic upgrade head && python -m scripts.seed # DB setup
+uvicorn app.main:app --reload                  # API on :8000
+cd apps/web && pnpm install && pnpm dev        # Frontend on :5173
 ```
 
-### Running Tests
+## Architecture
 
-```bash
-# Backend tests
-cd apps/api
-pytest
+| Layer | Technology | Hosting |
+|-------|-----------|---------|
+| Frontend | React 19 + Vite + TailwindCSS + MapLibre GL | S3 + CloudFront |
+| Backend | FastAPI + SQLAlchemy 2 + Mangum | AWS Lambda |
+| Database | PostgreSQL 16 | Neon.tech (serverless, free) |
+| CI/CD | GitHub Actions | Automated on push to main |
+| Infra | SAM/CloudFormation | ~$0.50/month |
 
-# Frontend tests
-cd apps/web
-pnpm test
+## Environments
 
-# E2E tests
-cd apps/web
-pnpm test:e2e
-```
-
-## Documentation
-
-- [Architecture](docs/architecture.md)
-- [Domain Model](docs/domain-model.md)
-- [Simulation Spec](docs/simulation-spec.md)
-- [Data Model](docs/data-model.md)
-- [API Contract](docs/api-contract.md)
-- [Data Lineage](docs/data-lineage.md)
-- [Assumptions & Limitations](docs/assumptions-and-limitations.md)
-- [Runbook](docs/runbook.md)
-
-## Project Structure
-
-```
-petrole3/
-├── apps/
-│   ├── api/                    # FastAPI backend
-│   │   ├── app/
-│   │   │   ├── api/            # Route handlers (ref, scenarios, simulations)
-│   │   │   ├── engine/         # Simulation engine (rules A-I, narrative)
-│   │   │   ├── models.py       # SQLAlchemy ORM models
-│   │   │   ├── schemas.py      # Pydantic v2 schemas
-│   │   │   ├── database.py     # Async DB session
-│   │   │   ├── config.py       # Settings
-│   │   │   └── main.py         # FastAPI app entry point
-│   │   ├── alembic/            # Database migrations
-│   │   ├── scripts/            # Seed script
-│   │   └── tests/              # Unit, property-based, golden tests
-│   └── web/                    # React 19 + Vite frontend
-│       ├── src/
-│       │   ├── api/            # API client & TanStack Query hooks
-│       │   ├── components/     # Header, SidePanel, GlobalStats
-│       │   ├── features/       # Map, Scenarios, Simulation panels
-│       │   ├── hooks/          # usePreviewEngine
-│       │   ├── store/          # Zustand global state
-│       │   ├── workers/        # Web Worker preview engine
-│       │   └── types.ts        # Shared TypeScript types
-│       └── e2e/                # Playwright E2E tests
-├── data/seed/                  # JSON seed data files
-├── docs/                       # Architecture & spec documentation
-└── docker-compose.yml          # PostgreSQL + PostGIS
-```
+| Environment | URL | Branch | Deploys on |
+|-------------|-----|--------|------------|
+| **Production** | `petrosim.joyon.org` | `main` | Push to main (after CI passes) |
+| **Development** | `dev-petrosim.joyon.org` | Any non-main branch | Push to any branch |
 
 ## Simulation Rules
 
@@ -119,6 +66,17 @@ petrole3/
 | G | Coverage ratio | Compute demand coverage per country |
 | H | Stress scoring | Classify countries: stable/tension/critical/emergency |
 | I | Price impact | Estimate global price impact via elasticity model |
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Data Sources & Methodology](docs/data-sources.md)
+- [AWS Deployment](docs/aws-deployment.md)
+- [Data Update Plan](docs/data-update-plan.md)
+- [Domain Model](docs/domain-model.md)
+- [Simulation Spec](docs/simulation-spec.md)
+- [API Contract](docs/api-contract.md)
+- [Data Lineage](docs/data-lineage.md)
 
 ## License
 
