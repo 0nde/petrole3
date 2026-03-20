@@ -97,9 +97,13 @@ class TestGoldenRussiaEmbargo:
 
         assert deu is not None
         assert pol is not None
-        # Germany and Poland depend on Russian oil via Druzhba
+        # Germany depends on Russian oil via Druzhba — imports must drop
         assert deu.imports_after < deu.imports_before
-        assert pol.imports_after < pol.imports_before
+        # Poland has no direct import flows in seed data (imports_before=0)
+        # but should still be severely affected structurally
+        assert pol.stress_status in ("critical", "emergency"), (
+            f"Poland should be critical/emergency under Russian embargo, got {pol.stress_status}"
+        )
 
     def test_china_india_unaffected(self, seed_world):
         actions = [{
