@@ -12,10 +12,51 @@ const STRESS_COLORS: Record<StressStatus, string> = {
   emergency: "#ef4444",
 };
 
-const NO_COLOR = "rgba(0,0,0,0)";
+const NO_COLOR = "transparent";
 const SELECTED_COLOR = "#3b82f6";
-const COUNTRY_GEOJSON_URL = "/api/v1/geo/countries";
+const GEOJSON_BACKEND = "/api/v1/geo/countries";
+const GEOJSON_CDN =
+  "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+/**
+ * Load country boundary GeoJSON with fallback.
+ * 1. Try the lightweight backend proxy (pre-stripped properties).
+ * 2. If it fails or returns 0 features, fetch directly from CDN and strip client-side.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadCountryGeoJSON(): Promise<any | null> {
+  // Backend proxy (pre-stripped, ~30 KB)
+  try {
+    const res = await fetch(GEOJSON_BACKEND);
+    if (res.ok) {
+      const gj = await res.json();
+      if (Array.isArray(gj?.features) && gj.features.length > 0) return gj;
+      console.warn("[MapView] Backend returned empty GeoJSON — falling back to CDN");
+    }
+  } catch (e) {
+    console.warn("[MapView] Backend GeoJSON proxy failed:", e);
+  }
+
+  // Fallback: fetch directly from CDN (CORS-enabled, ~530 KB)
+  try {
+    const res = await fetch(GEOJSON_CDN);
+    if (!res.ok) throw new Error(`CDN ${res.status}`);
+    const gj = await res.json();
+    for (const f of gj.features ?? []) {
+      const p = f.properties ?? {};
+      f.properties = {
+        ISO_A3: p.ISO_A3 ?? "",
+        NAME: p.NAME ?? "",
+        ISO_A3_EH: p.ISO_A3_EH ?? p.ISO_A3 ?? "",
+      };
+    }
+    return gj;
+  } catch (e) {
+    console.error("[MapView] CDN GeoJSON fallback also failed:", e);
+    return null;
+  }
+}
 
 /**
  * Build a MapLibre paint expression that colors countries by stress status
@@ -115,47 +156,47 @@ export function MapView() {
     map.addControl(new maplibregl.NavigationControl(), "bottom-left");
     mapRef.current = map;
 
-    map.on("load", () => {
-      fetch(COUNTRY_GEOJSON_URL)
-        .then((r) => r.json())
-        .then((geojson) => {
-          if (!map.getSource("country-boundaries")) {
-            map.addSource("country-boundaries", { type: "geojson", data: geojson });
+    map.on("load", async () => {
+      const geojson = await loadCountryGeoJSON();
+      if (!geojson) {
+        console.warn("[MapView] No GeoJSON available — choropleth disabled, dots still work");
+        return;
+      }
+      if (!map.getSource("country-boundaries")) {
+        map.addSource("country-boundaries", { type: "geojson", data: geojson });
 
-            const firstSymbolLayer = map.getStyle().layers?.find((l) => l.type === "symbol");
+        const firstSymbolLayer = map.getStyle().layers?.find((l) => l.type === "symbol");
 
-            map.addLayer(
-              {
-                id: "country-fill",
-                type: "fill",
-                source: "country-boundaries",
-                paint: { "fill-color": NO_COLOR, "fill-opacity": 0.35 },
-              },
-              firstSymbolLayer?.id,
-            );
-            map.addLayer(
-              {
-                id: "country-outline",
-                type: "line",
-                source: "country-boundaries",
-                paint: { "line-color": NO_COLOR, "line-width": 1.5, "line-opacity": 0.8 },
-              },
-              firstSymbolLayer?.id,
-            );
+        map.addLayer(
+          {
+            id: "country-fill",
+            type: "fill",
+            source: "country-boundaries",
+            paint: { "fill-color": NO_COLOR, "fill-opacity": 0.55 },
+          },
+          firstSymbolLayer?.id,
+        );
+        map.addLayer(
+          {
+            id: "country-outline",
+            type: "line",
+            source: "country-boundaries",
+            paint: { "line-color": NO_COLOR, "line-width": 2, "line-opacity": 0.9 },
+          },
+          firstSymbolLayer?.id,
+        );
 
-            map.on("click", "country-fill", (e) => {
-              const props = e.features?.[0]?.properties;
-              const code = props?.ISO_A3_EH || props?.ISO_A3;
-              if (code && code !== "-99") handleCountryClick(code);
-            });
-            map.on("mouseenter", "country-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-            map.on("mouseleave", "country-fill", () => { map.getCanvas().style.cursor = ""; });
+        map.on("click", "country-fill", (e) => {
+          const props = e.features?.[0]?.properties;
+          const code = props?.ISO_A3_EH || props?.ISO_A3;
+          if (code && code !== "-99") handleCountryClick(code);
+        });
+        map.on("mouseenter", "country-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "country-fill", () => { map.getCanvas().style.cursor = ""; });
 
-            // useState triggers re-render → color useEffect runs
-            setGeoLoaded(true);
-          }
-        })
-        .catch(() => { /* GeoJSON load failed — dot markers still work as fallback */ });
+        // useState triggers re-render → color useEffect runs
+        setGeoLoaded(true);
+      }
     });
 
     return () => { map.remove(); mapRef.current = null; };
@@ -183,7 +224,7 @@ export function MapView() {
       const hasImpact = !!impact;
       const isSelected = c.code === selectedCountryCode;
       const color = hasImpact ? STRESS_COLORS[impact.stress_status] : isSelected ? SELECTED_COLOR : "#7cc8fb";
-      const size = hasImpact ? Math.max(6, Math.min(20, 6 + impact.stress_score * 0.14)) : isSelected ? 8 : 4;
+      const size = hasImpact ? Math.max(10, Math.min(22, 10 + impact.stress_score * 0.12)) : isSelected ? 14 : 10;
 
       const el = document.createElement("div");
       el.style.cssText = `width:${size}px;height:${size}px;cursor:pointer`;
