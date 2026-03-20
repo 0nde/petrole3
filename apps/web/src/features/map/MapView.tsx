@@ -5,6 +5,9 @@ import { useAppStore } from "../../store/appStore";
 import { useCountries, useChokepoints } from "../../api/hooks";
 import type { CountryImpact, StressStatus } from "../../types";
 
+/** MapLibre v5 moved ExpressionSpecification to @maplibre/maplibre-gl-style-spec. */
+type StyleExpression = maplibregl.ExpressionSpecification;
+
 const STRESS_COLORS: Record<StressStatus, string> = {
   stable: "#22c55e",
   tension: "#eab308",
@@ -12,27 +15,30 @@ const STRESS_COLORS: Record<StressStatus, string> = {
   emergency: "#ef4444",
 };
 
+const NO_COLOR = "rgba(0,0,0,0)";
 const COUNTRY_GEOJSON_URL = "/api/v1/geo/countries";
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /** ISO_A3_EH with fallback to ISO_A3 (handles -99 disputed territories in Natural Earth). */
-const ISO_PROP: maplibregl.ExpressionSpecification = [
+const ISO_PROP: StyleExpression = [
   "coalesce", ["get", "ISO_A3_EH"], ["get", "ISO_A3"],
 ];
 
 function buildCountryColorExpr(
   impactMap: Map<string, CountryImpact>,
   selectedCode: string | null,
-): maplibregl.ExpressionSpecification {
-  const expr: unknown[] = ["match", ISO_PROP];
+): string | StyleExpression {
+  const cases: unknown[] = [];
   impactMap.forEach((ci, code) => {
-    expr.push(code, STRESS_COLORS[ci.stress_status]);
+    cases.push(code, STRESS_COLORS[ci.stress_status]);
   });
   if (selectedCode && !impactMap.has(selectedCode)) {
-    expr.push(selectedCode, "#3b82f6");
+    cases.push(selectedCode, "#3b82f6");
   }
-  expr.push("transparent");
-  return expr as maplibregl.ExpressionSpecification;
+  // match expression requires at least one label-output pair;
+  // return a plain color when there are no cases to match.
+  if (cases.length === 0) return NO_COLOR;
+  return ["match", ISO_PROP, ...cases, NO_COLOR] as StyleExpression;
 }
 
 export function MapView() {
@@ -85,7 +91,7 @@ export function MapView() {
                 id: "country-fill",
                 type: "fill",
                 source: "country-boundaries",
-                paint: { "fill-color": "transparent", "fill-opacity": 0.25 },
+                paint: { "fill-color": NO_COLOR, "fill-opacity": 0.25 },
               },
               firstSymbolLayer?.id,
             );
@@ -94,7 +100,7 @@ export function MapView() {
                 id: "country-outline",
                 type: "line",
                 source: "country-boundaries",
-                paint: { "line-color": "transparent", "line-width": 1.5, "line-opacity": 0.6 },
+                paint: { "line-color": NO_COLOR, "line-width": 1.5, "line-opacity": 0.6 },
               },
               firstSymbolLayer?.id,
             );
@@ -122,10 +128,10 @@ export function MapView() {
 
     map.setPaintProperty("country-fill", "fill-color", buildCountryColorExpr(impactMap, selectedCountryCode));
 
-    const outlineExpr: maplibregl.ExpressionSpecification = selectedCountryCode
-      ? ["case", ["==", ISO_PROP, selectedCountryCode], "#3b82f6", "transparent"]
-      : "transparent" as unknown as maplibregl.ExpressionSpecification;
-    map.setPaintProperty("country-outline", "line-color", outlineExpr);
+    const outlineColor: string | StyleExpression = selectedCountryCode
+      ? ["case", ["==", ISO_PROP, selectedCountryCode], "#3b82f6", NO_COLOR]
+      : NO_COLOR;
+    map.setPaintProperty("country-outline", "line-color", outlineColor);
   }, [impactMap, selectedCountryCode]);
 
   // Update markers (country dots + chokepoint diamonds)

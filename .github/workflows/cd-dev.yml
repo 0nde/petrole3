@@ -1,4 +1,4 @@
-name: CD Dev — Deploy to dev-petrosim.joyon.org
+name: CD Dev — Deploy to Dev Environment
 
 on:
   push:
