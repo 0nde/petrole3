@@ -51,7 +51,7 @@ def simple_world():
         make_country("AAA", "Producer A", production=10.0, consumption=3.0, priority=0.3),
         make_country("BBB", "Consumer B", region="europe", production=0.5, consumption=5.0,
                      reserves_mb=100, reserve_rate=0.5, priority=0.8),
-        make_country("CCC", "Hub C", region="asia_pacific", production=0.2, consumption=3.0,
+        make_country("CCC", "Hub C", region="asia_pacific", production=4.0, consumption=3.0,
                      refining_cap=4.0, is_hub=True, reserves_mb=50, reserve_rate=0.2, priority=0.7),
     ]
     chokepoints = [
