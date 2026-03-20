@@ -109,7 +109,7 @@ Resources:
   IpRestrictionFunction:
     Type: AWS::CloudFront::Function
     Properties:
-      Name: petrosim-ip-restriction
+      Name: !Sub "${AWS::StackName}-ip-restriction"
       AutoPublish: true
       FunctionCode: |
         function handler(event) {
@@ -204,7 +204,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: petrosim-oac
+        Name: !Sub "${AWS::StackName}-oac"
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
