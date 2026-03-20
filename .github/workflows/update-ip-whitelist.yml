@@ -69,8 +69,7 @@ jobs:
 
           # Replace placeholder with actual IPs
           sed -i "s|PLACEHOLDER_IPS|$IP_ARRAY|g" /tmp/cf-function.js
-          echo "Generated function with IPs: $IP_ARRAY"
-          cat /tmp/cf-function.js
+          echo "Generated function with $(echo "$IP_ARRAY" | tr ',' '\n' | wc -l) IP rule(s)"
 
       - name: Update CloudFront Function
         run: |
@@ -96,5 +95,4 @@ jobs:
             --if-match "$ETAG"
 
           echo "✅ CloudFront Function updated and published"
-          echo "Allowed IPs: ${{ secrets.ALLOWED_IPS }}"
           echo "Reason: ${{ github.event.inputs.reason || 'No reason provided' }}"

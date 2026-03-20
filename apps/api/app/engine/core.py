@@ -230,12 +230,12 @@ class SimulationEngine:
         for country in state.countries.values():
             exports_before = baseline_exports.get(country.code, 0)
             imports_before = baseline_imports.get(country.code, 0)
-            exports_after = getattr(country, "_exports_after", 0.0)
-            imports_after = getattr(country, "_imports_after", 0.0)
-            domestic_available = getattr(country, "_domestic_available", country.production_current)
-            coverage = getattr(country, "_coverage", 1.0)
-            stress_score = getattr(country, "_stress_score", 0.0)
-            stress_status = getattr(country, "_stress_status", "stable")
+            exports_after = country.exports_after
+            imports_after = country.imports_after
+            domestic_available = country.domestic_available or country.production_current
+            coverage = country.coverage
+            stress_score = country.stress_score
+            stress_status = country.stress_status
 
             country_impacts.append(CountryImpactResult(
                 country_code=country.code,
@@ -272,8 +272,8 @@ class SimulationEngine:
 
         # Global metrics
         global_stress = sum(stress_scores) / len(stress_scores) if stress_scores else 0.0
-        supply_loss_pct = getattr(state, "_global_supply_loss_pct", 0.0)
-        price_impact_pct = getattr(state, "_estimated_price_impact_pct", 0.0)
+        supply_loss_pct = state.global_supply_loss_pct
+        price_impact_pct = state.estimated_price_impact_pct
 
         # Sort country impacts by stress descending for top-affected
         country_impacts.sort(key=lambda c: c.stress_score, reverse=True)
