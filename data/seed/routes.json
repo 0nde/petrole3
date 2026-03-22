@@ -8,7 +8,8 @@
   {"id": "russia_asia_east", "name": "Russia → East Asia (Pacific / ESPO)", "route_type": "maritime", "chokepoints": []},
   {"id": "russia_asia_pipeline", "name": "Russia → China via ESPO pipeline", "route_type": "pipeline", "chokepoints": []},
   {"id": "russia_europe_pipeline", "name": "Russia → Europe via Druzhba pipeline", "route_type": "pipeline", "chokepoints": []},
-  {"id": "russia_india_cape", "name": "Russia → India via Cape / Suez", "route_type": "maritime", "chokepoints": []},
+  {"id": "russia_india_cape", "name": "Russia → India via Baltic, Danish Straits & Cape", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "danish_straits", "order_index": 0}, {"chokepoint_id": "cape_good_hope", "order_index": 1}]},
+  {"id": "russia_india_suez", "name": "Russia → India via Black Sea, Bosphorus & Suez", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "bosphorus", "order_index": 0}, {"chokepoint_id": "bab_el_mandeb", "order_index": 1}, {"chokepoint_id": "suez", "order_index": 2}]},
   {"id": "waf_europe", "name": "West Africa → Europe (Atlantic direct)", "route_type": "maritime", "chokepoints": []},
   {"id": "waf_asia_cape", "name": "West Africa → East Asia via Cape", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "cape_good_hope", "order_index": 0}]},
   {"id": "waf_north_america", "name": "West Africa → North America (Atlantic direct)", "route_type": "maritime", "chokepoints": []},
@@ -28,5 +29,7 @@
   {"id": "nld_europe", "name": "Netherlands → Europe (refined products)", "route_type": "maritime", "chokepoints": []},
   {"id": "ind_regional", "name": "India → Regional (refined products)", "route_type": "maritime", "chokepoints": []},
   {"id": "usa_latam", "name": "USA → Latin America (refined products)", "route_type": "maritime", "chokepoints": []},
-  {"id": "sea_intra", "name": "Southeast Asia intra-regional", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "malacca", "order_index": 0}]}
+  {"id": "sea_intra", "name": "Southeast Asia intra-regional", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "malacca", "order_index": 0}]},
+  {"id": "atlantic_baltic", "name": "Atlantic → Baltic via Danish Straits", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "danish_straits", "order_index": 0}]},
+  {"id": "pg_europe_baltic", "name": "Persian Gulf → Baltic via Hormuz, Suez & Danish Straits", "route_type": "maritime", "chokepoints": [{"chokepoint_id": "hormuz", "order_index": 0}, {"chokepoint_id": "bab_el_mandeb", "order_index": 1}, {"chokepoint_id": "suez", "order_index": 2}, {"chokepoint_id": "danish_straits", "order_index": 3}]}
 ]

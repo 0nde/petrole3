@@ -45,8 +45,12 @@
   {"id": "OMN-IND-crude", "exporter_code": "OMN", "importer_code": "IND", "product_id": "crude", "volume_mbpd": 0.10, "route_id": "pg_india", "confidence": "medium", "source": "Estimate"},
   {"id": "OMN-KOR-crude", "exporter_code": "OMN", "importer_code": "KOR", "product_id": "crude", "volume_mbpd": 0.08, "route_id": "pg_east_asia", "confidence": "medium", "source": "Estimate"},
   {"id": "RUS-CHN-crude", "exporter_code": "RUS", "importer_code": "CHN", "product_id": "crude", "volume_mbpd": 2.15, "route_id": "russia_asia_pipeline", "confidence": "high", "source": "EIA 2023 / Chinese customs — pipeline ESPO + maritime"},
-  {"id": "RUS-IND-crude", "exporter_code": "RUS", "importer_code": "IND", "product_id": "crude", "volume_mbpd": 1.70, "route_id": "russia_india_cape", "confidence": "high", "source": "EIA 2023 / PPAC — surge post-sanctions"},
+  {"id": "RUS-IND-crude-baltic", "exporter_code": "RUS", "importer_code": "IND", "product_id": "crude", "volume_mbpd": 1.20, "route_id": "russia_india_cape", "confidence": "high", "source": "EIA 2023 / PPAC — Baltic ports via Danish Straits & Cape (post-sanctions surge)"},
+  {"id": "RUS-IND-crude-blacksea", "exporter_code": "RUS", "importer_code": "IND", "product_id": "crude", "volume_mbpd": 0.50, "route_id": "russia_india_suez", "confidence": "high", "source": "EIA 2023 / PPAC — Black Sea ports via Bosphorus & Suez"},
   {"id": "RUS-TUR-crude", "exporter_code": "RUS", "importer_code": "TUR", "product_id": "crude", "volume_mbpd": 0.30, "route_id": "russia_europe_bosphorus", "confidence": "medium", "source": "EIA 2023"},
+  {"id": "RUS-DEU-crude", "exporter_code": "RUS", "importer_code": "DEU", "product_id": "crude", "volume_mbpd": 0.12, "route_id": "russia_europe_baltic", "confidence": "medium", "source": "EIA 2023 — Rosneft Schwedt refinery via Baltic/Druzhba"},
+  {"id": "RUS-POL-crude", "exporter_code": "RUS", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.18, "route_id": "russia_europe_pipeline", "confidence": "medium", "source": "Druzhba pipeline — reduced post-sanctions but still ~35% of POL imports"},
+  {"id": "RUS-FIN-crude", "exporter_code": "RUS", "importer_code": "FIN", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "russia_europe_baltic", "confidence": "medium", "source": "EIA 2023 — reduced post-sanctions, some via Baltic"},
   {"id": "RUS-KOR-crude", "exporter_code": "RUS", "importer_code": "KOR", "product_id": "crude", "volume_mbpd": 0.15, "route_id": "russia_asia_east", "confidence": "medium", "source": "EIA 2023 — reduced post-sanctions"},
   {"id": "RUS-HUN-crude", "exporter_code": "RUS", "importer_code": "HUN", "product_id": "crude", "volume_mbpd": 0.07, "route_id": "russia_europe_pipeline", "confidence": "medium", "source": "Druzhba south branch — EU exemption"},
   {"id": "RUS-CZE-crude", "exporter_code": "RUS", "importer_code": "CZE", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "russia_europe_pipeline", "confidence": "medium", "source": "Druzhba south branch — EU exemption"},
@@ -156,5 +160,59 @@
   {"id": "USA-CAN-refined", "exporter_code": "USA", "importer_code": "CAN", "product_id": "refined", "volume_mbpd": 0.20, "route_id": "canada_usa_pipeline", "confidence": "high", "source": "EIA 2023"},
   {"id": "USA-PER-refined", "exporter_code": "USA", "importer_code": "PER", "product_id": "refined", "volume_mbpd": 0.04, "route_id": "usa_latam", "confidence": "medium", "source": "Estimate"},
   {"id": "SAU-EGY-refined", "exporter_code": "SAU", "importer_code": "EGY", "product_id": "refined", "volume_mbpd": 0.08, "route_id": "pg_europe_suez", "confidence": "medium", "source": "Estimate"},
-  {"id": "ARE-PAK-refined", "exporter_code": "ARE", "importer_code": "PAK", "product_id": "refined", "volume_mbpd": 0.08, "route_id": "pg_india", "confidence": "medium", "source": "Estimate"}
+  {"id": "ARE-PAK-refined", "exporter_code": "ARE", "importer_code": "PAK", "product_id": "refined", "volume_mbpd": 0.08, "route_id": "pg_india", "confidence": "medium", "source": "Estimate"},
+
+  {"id": "SAU-POL-crude", "exporter_code": "SAU", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.11, "route_id": "pg_europe_baltic", "confidence": "medium", "source": "Eurostat COMEXT 2023 — ~22% of POL imports via Gdansk"},
+  {"id": "NOR-POL-crude", "exporter_code": "NOR", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "atlantic_baltic", "confidence": "medium", "source": "Eurostat 2023 — ~12.5% via Danish Straits to Gdansk"},
+  {"id": "USA-POL-crude", "exporter_code": "USA", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "atlantic_baltic", "confidence": "medium", "source": "EIA 2023 — post-sanctions diversification"},
+  {"id": "NGA-POL-crude", "exporter_code": "NGA", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "atlantic_baltic", "confidence": "medium", "source": "Eurostat 2023 — ~3.5% via Atlantic & Danish Straits"},
+  {"id": "GBR-POL-crude", "exporter_code": "GBR", "importer_code": "POL", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "atlantic_baltic", "confidence": "medium", "source": "EIA 2023 — North Sea crude via Danish Straits"},
+
+  {"id": "KAZ-AUT-crude", "exporter_code": "KAZ", "importer_code": "AUT", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "caspian_europe", "confidence": "medium", "source": "Eurostat 2023 — CPC pipeline via Bosphorus to TAL pipeline"},
+  {"id": "RUS-AUT-crude", "exporter_code": "RUS", "importer_code": "AUT", "product_id": "crude", "volume_mbpd": 0.05, "route_id": "russia_europe_pipeline", "confidence": "medium", "source": "Druzhba south branch → Schwechat refinery"},
+  {"id": "IRQ-AUT-crude", "exporter_code": "IRQ", "importer_code": "AUT", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "pg_europe_suez", "confidence": "medium", "source": "Eurostat 2023 — via Med/Trieste/TAL pipeline"},
+  {"id": "LBY-AUT-crude", "exporter_code": "LBY", "importer_code": "AUT", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "north_africa_europe", "confidence": "medium", "source": "Eurostat 2023 — via Med/Trieste/TAL pipeline"},
+  {"id": "NGA-AUT-crude", "exporter_code": "NGA", "importer_code": "AUT", "product_id": "crude", "volume_mbpd": 0.02, "route_id": "waf_europe", "confidence": "medium", "source": "Eurostat 2023 — via Trieste/TAL pipeline"},
+
+  {"id": "SAU-NZL-crude", "exporter_code": "SAU", "importer_code": "NZL", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_east_asia", "confidence": "medium", "source": "Estimate — NZ imports mostly from Gulf via Malacca"},
+  {"id": "ARE-NZL-crude", "exporter_code": "ARE", "importer_code": "NZL", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_east_asia", "confidence": "medium", "source": "Estimate"},
+  {"id": "MYS-NZL-crude", "exporter_code": "MYS", "importer_code": "NZL", "product_id": "crude", "volume_mbpd": 0.02, "route_id": "sea_intra", "confidence": "estimated", "source": "Estimate — SE Asian crude"},
+
+  {"id": "SAU-MYS-crude", "exporter_code": "SAU", "importer_code": "MYS", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+  {"id": "ARE-MYS-crude", "exporter_code": "ARE", "importer_code": "MYS", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+
+  {"id": "SAU-IDN-crude2", "exporter_code": "SAU", "importer_code": "IDN", "product_id": "crude", "volume_mbpd": 0.15, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023 — additional Gulf imports"},
+  {"id": "ARE-IDN-crude", "exporter_code": "ARE", "importer_code": "IDN", "product_id": "crude", "volume_mbpd": 0.10, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+  {"id": "NGA-IDN-crude", "exporter_code": "NGA", "importer_code": "IDN", "product_id": "crude", "volume_mbpd": 0.08, "route_id": "waf_asia_cape", "confidence": "medium", "source": "Estimate — West African crude"},
+
+  {"id": "SAU-PHL-crude", "exporter_code": "SAU", "importer_code": "PHL", "product_id": "crude", "volume_mbpd": 0.10, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023 — PHL largest supplier"},
+  {"id": "ARE-PHL-crude", "exporter_code": "ARE", "importer_code": "PHL", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+  {"id": "KWT-PHL-crude", "exporter_code": "KWT", "importer_code": "PHL", "product_id": "crude", "volume_mbpd": 0.05, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+
+  {"id": "KAZ-CZE-crude", "exporter_code": "KAZ", "importer_code": "CZE", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "caspian_europe", "confidence": "medium", "source": "Eurostat 2023 — via TAL/Druzhba pipeline"},
+  {"id": "DZA-CZE-crude", "exporter_code": "DZA", "importer_code": "CZE", "product_id": "crude", "volume_mbpd": 0.02, "route_id": "north_africa_europe", "confidence": "medium", "source": "Eurostat 2023 — via IKL pipeline"},
+
+  {"id": "SAU-FIN-crude", "exporter_code": "SAU", "importer_code": "FIN", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_europe_baltic", "confidence": "medium", "source": "Eurostat 2023 — via Danish Straits to Porvoo refinery"},
+  {"id": "USA-FIN-crude", "exporter_code": "USA", "importer_code": "FIN", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "atlantic_baltic", "confidence": "medium", "source": "EIA 2023 — post-sanctions diversification"},
+
+  {"id": "DZA-SWE-crude", "exporter_code": "DZA", "importer_code": "SWE", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "atlantic_baltic", "confidence": "medium", "source": "Eurostat 2023 — via Atlantic & Danish Straits"},
+  {"id": "USA-SWE-crude", "exporter_code": "USA", "importer_code": "SWE", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "atlantic_baltic", "confidence": "medium", "source": "EIA 2023 — post-sanctions diversification"},
+
+  {"id": "KAZ-ROU-crude2", "exporter_code": "KAZ", "importer_code": "ROU", "product_id": "crude", "volume_mbpd": 0.05, "route_id": "caspian_europe", "confidence": "medium", "source": "Eurostat 2023 — via Black Sea/Constanta"},
+  {"id": "IRQ-ROU-crude", "exporter_code": "IRQ", "importer_code": "ROU", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_europe_suez", "confidence": "medium", "source": "Eurostat 2023 — via Suez/Med/Constanta"},
+
+  {"id": "NGA-PRT-crude2", "exporter_code": "NGA", "importer_code": "PRT", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "waf_europe", "confidence": "medium", "source": "Eurostat 2023 — additional WAF crude"},
+  {"id": "BRA-PRT-crude", "exporter_code": "BRA", "importer_code": "PRT", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "latam_europe", "confidence": "medium", "source": "Eurostat 2023 — Brazilian pre-salt crude"},
+
+  {"id": "SAU-BEL-crude", "exporter_code": "SAU", "importer_code": "BEL", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "pg_europe_suez", "confidence": "medium", "source": "Eurostat 2023 — Antwerp refinery complex"},
+  {"id": "NGA-BEL-crude", "exporter_code": "NGA", "importer_code": "BEL", "product_id": "crude", "volume_mbpd": 0.05, "route_id": "waf_europe", "confidence": "medium", "source": "Eurostat 2023"},
+  {"id": "NOR-BEL-crude2", "exporter_code": "NOR", "importer_code": "BEL", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "norway_europe", "confidence": "medium", "source": "Eurostat 2023 — additional North Sea crude"},
+
+  {"id": "SAU-VNM-crude", "exporter_code": "SAU", "importer_code": "VNM", "product_id": "crude", "volume_mbpd": 0.06, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023 — Vietnam's Gulf crude imports"},
+  {"id": "KWT-VNM-crude", "exporter_code": "KWT", "importer_code": "VNM", "product_id": "crude", "volume_mbpd": 0.04, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+
+  {"id": "SAU-THA-crude2", "exporter_code": "SAU", "importer_code": "THA", "product_id": "crude", "volume_mbpd": 0.12, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023 — additional Gulf imports for Thai refineries"},
+  {"id": "ARE-THA-crude2", "exporter_code": "ARE", "importer_code": "THA", "product_id": "crude", "volume_mbpd": 0.08, "route_id": "pg_east_asia", "confidence": "medium", "source": "EIA 2023"},
+
+  {"id": "SAU-BGD-crude", "exporter_code": "SAU", "importer_code": "BGD", "product_id": "crude", "volume_mbpd": 0.03, "route_id": "pg_india", "confidence": "estimated", "source": "Estimate — Gulf crude for Bangladesh"}
 ]
