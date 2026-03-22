@@ -9,6 +9,9 @@ import type {
   CountryImpact,
   FlowImpact,
   SimulationStep,
+  CountryBaselines,
+  TradeFlowDetail,
+  VerificationSummary,
 } from "../types";
 
 const BASE_URL = "/api/v1";
@@ -57,4 +60,15 @@ export const fetchSimulationFlows = (id: string, minLoss = 0) =>
 
 export const fetchSimulationJournal = (id: string) =>
   request<SimulationStep[]>(`/simulations/${id}/journal`);
+
+// --- Enriched Data (petrole-datas backbone) ---
+
+export const fetchCountryBaselines = (code: string) =>
+  request<CountryBaselines>(`/data/baselines/${code}`);
+
+export const fetchCountryTrade = (code: string) =>
+  request<TradeFlowDetail[]>(`/data/trade/${code}`);
+
+export const fetchVerificationSummary = () =>
+  request<VerificationSummary>("/data/verification/summary");
 

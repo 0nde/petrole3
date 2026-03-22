@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
-import { useCountries, useFlows } from "../../api/hooks";
+import { useCountries, useFlows, useCountryBaselines, useCountryTrade } from "../../api/hooks";
 import { useI18n } from "../../i18n/useI18n";
 import { stressConsequences } from "../../data/stressConsequences";
 import { getTradeProfile } from "../../data/countryTradeProfiles";
+import { DataSection } from "../../components/DataSection";
+import { ConfidenceDot } from "../../components/ConfidenceBadge";
 import type { StressStatus } from "../../types";
 import type { Lang } from "../../i18n/translations";
 
@@ -35,6 +37,30 @@ export function CountryPanel() {
   const setSelectedCountryCode = useAppStore((s) => s.setSelectedCountryCode);
   const { data: countries } = useCountries();
   const { data: flows } = useFlows();
+
+  // Convert ISO-3 (PetroSim) to ISO-2 (petrole-datas backbone) for enriched data
+  const iso2Code = useMemo(() => {
+    if (!selectedCode) return null;
+    const ISO3_TO_ISO2: Record<string, string> = {
+      USA: "US", FRA: "FR", CHN: "CN", RUS: "RU", SAU: "SA", DEU: "DE", JPN: "JP",
+      IND: "IN", GBR: "GB", BRA: "BR", KOR: "KR", ITA: "IT", ESP: "ES", NLD: "NL",
+      CAN: "CA", MEX: "MX", NOR: "NO", AUS: "AU", NGA: "NG", DZA: "DZ", LBY: "LY",
+      AGO: "AO", ARE: "AE", KWT: "KW", QAT: "QA", IRQ: "IQ", IRN: "IR", OMN: "OM",
+      BHR: "BH", ISR: "IL", TUR: "TR", POL: "PL", CZE: "CZ", IRL: "IE", AUT: "AT",
+      DNK: "DK", HUN: "HU", SWE: "SE", FIN: "FI", PRT: "PT", GRC: "GR", SVK: "SK",
+      NZL: "NZ", BEL: "BE", CHE: "CH", ROU: "RO", BGR: "BG", HRV: "HR", SVN: "SI",
+      LTU: "LT", EST: "EE", LVA: "LV", IDN: "ID", THA: "TH", MYS: "MY", SGP: "SG",
+      PHL: "PH", VNM: "VN", TWN: "TW", PAK: "PK", BGD: "BD", MMR: "MM", EGY: "EG",
+      ZAF: "ZA", COL: "CO", VEN: "VE", ECU: "EC", PER: "PE", CHL: "CL", TTO: "TT",
+      CUB: "CU", BOL: "BO", ARG: "AR", KAZ: "KZ", AZE: "AZ", TKM: "TM", UZB: "UZ",
+      BLR: "BY", GHA: "GH", CIV: "CI", CMR: "CM", TUN: "TN", GAB: "GA", COG: "CG",
+      GNQ: "GQ", TCD: "TD", SSD: "SS", SDN: "SD", YEM: "YE", LBN: "LB", GUY: "GY",
+    };
+    return ISO3_TO_ISO2[selectedCode] ?? null;
+  }, [selectedCode]);
+
+  const { data: baselines } = useCountryBaselines(iso2Code);
+  const { data: comtradeTrade } = useCountryTrade(iso2Code);
 
   // Compute suppliers and clients from reference flows
   const { suppliers, clients } = useMemo(() => {
@@ -165,6 +191,59 @@ export function CountryPanel() {
             <InfoCell label={t("country.reserves")} value={`${country.strategic_reserves_mb.toFixed(0)} ${t("country.mb")}`} />
             <InfoCell label={t("country.refining_hub")} value={country.is_refining_hub ? t("country.yes") : t("country.no")} />
             <InfoCell label={t("country.reserve_rate")} value={`${country.reserve_release_rate_mbpd.toFixed(2)} ${t("country.mbpd")}`} />
+          </div>
+        </div>
+      )}
+
+      {/* Enriched data from petrole-datas backbone */}
+      {baselines && (
+        <>
+          <DataSection titleKey="data.oil_core" icon="🛢" records={baselines.oil_core} />
+          <DataSection titleKey="data.energy_structure" icon="⚡" records={baselines.energy_structure} />
+          <DataSection titleKey="data.electricity_mix" icon="🔌" records={baselines.electricity_mix} />
+          <DataSection titleKey="data.climate" icon="🌍" records={baselines.climate} />
+        </>
+      )}
+
+      {/* Comtrade detailed trade (verified sources) */}
+      {comtradeTrade && comtradeTrade.length > 0 && (
+        <div className="border-b border-petro-700/50">
+          <div className="px-4 py-2 flex items-center gap-1.5">
+            <span className="text-xs">📦</span>
+            <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider">
+              {t("data.comtrade")}
+            </h4>
+            <span className="text-[10px] text-petro-600 ml-auto">
+              {comtradeTrade[0]?.reference_year}
+            </span>
+          </div>
+          <div className="px-4 pb-3 space-y-1">
+            {comtradeTrade.slice(0, 10).map((tf) => (
+              <div
+                key={tf.id}
+                className="flex items-center gap-2 px-2 py-1.5 rounded bg-petro-900/40"
+              >
+                <span className="text-[11px] text-petro-200 flex-1 truncate">
+                  {tf.partner_country}
+                </span>
+                <span className="text-xs font-bold text-blue-400 w-12 text-right">
+                  {tf.percentage.toFixed(1)}%
+                </span>
+                <div className="w-16 h-1.5 bg-petro-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full"
+                    style={{ width: `${Math.min(tf.percentage, 100)}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-petro-500 w-14 text-right font-mono">
+                  {tf.quantity.toFixed(0)} {tf.unit}
+                </span>
+                <ConfidenceDot score={tf.confidence_score} />
+              </div>
+            ))}
+            <div className="text-[9px] text-petro-600 px-2 pt-1">
+              {t("data.source")}: {comtradeTrade[0]?.source_name}
+            </div>
           </div>
         </div>
       )}
