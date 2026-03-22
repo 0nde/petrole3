@@ -189,9 +189,11 @@ def seed_backbone(pg_url: str, sqlite_path: str) -> None:
             count += 1
         print(f"  → {count} simulation parameters imported")
 
-        # ── 6. Update countries table with verified backbone values ──
-        print("Updating countries with backbone values...")
-        _update_countries_from_baselines(pg, baselines)
+        # NOTE: We intentionally do NOT update the countries table from backbone
+        # TWh values. OWID's TWh includes NGL + condensates + other liquids, so
+        # the TWh→Mb/d conversion doesn't match the EIA crude-only figures used
+        # by the simulation engine. The original curated Mb/d values from seed.py
+        # are authoritative for the simulation. Backbone data is display-only.
 
         pg.commit()
         print("\nBackbone seed completed successfully.")
