@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useScenarios, useRunSimulation, useRunCombinedSimulation } from "../../api/hooks";
 import { useAppStore } from "../../store/appStore";
 import { useI18n } from "../../i18n/useI18n";
+import { getScenarioIntel } from "../../data/scenarioIntelligence";
 import type { Scenario } from "../../types";
+import type { Lang } from "../../i18n/translations";
 
 function scenarioDisplayName(s: Scenario, lang: string): string {
   return lang === "fr" && s.name_fr ? s.name_fr : s.name;
@@ -95,16 +98,7 @@ export function ScenarioPanel() {
       {selectedScenarios.length > 0 && (
         <div className="border-t border-petro-700/50 p-4 shrink-0">
           {selectedScenarios.length === 1 ? (
-            <>
-              <h3 className="font-semibold text-petro-100 text-sm mb-1">
-                {scenarioDisplayName(selectedScenarios[0]!, lang)}
-              </h3>
-              {scenarioDisplayDesc(selectedScenarios[0]!, lang) && (
-                <p className="text-xs text-petro-400 mb-2 leading-relaxed">
-                  {scenarioDisplayDesc(selectedScenarios[0]!, lang)}
-                </p>
-              )}
-            </>
+            <SingleScenarioDetail scenario={selectedScenarios[0]!} lang={lang} />
           ) : (
             <>
               <h3 className="font-semibold text-blue-300 text-sm mb-1">
@@ -194,5 +188,107 @@ function ScenarioCard({
         </span>
       </div>
     </button>
+  );
+}
+
+function SingleScenarioDetail({ scenario, lang }: { scenario: Scenario; lang: string }) {
+  const [showIntel, setShowIntel] = useState(false);
+  const l = lang as Lang;
+  const intel = getScenarioIntel(scenario);
+  const desc = scenarioDisplayDesc(scenario, lang);
+
+  return (
+    <>
+      <h3 className="font-semibold text-petro-100 text-sm mb-1">
+        {scenarioDisplayName(scenario, lang)}
+      </h3>
+      {desc && (
+        <p className="text-xs text-petro-400 mb-2 leading-relaxed">{desc}</p>
+      )}
+
+      {intel && (
+        <>
+          <button
+            onClick={() => setShowIntel(!showIntel)}
+            className="text-[10px] text-blue-400 hover:text-blue-300 mb-2 flex items-center gap-1"
+          >
+            <span className={`transition-transform ${showIntel ? "rotate-90" : ""}`}>&#9654;</span>
+            {lang === "fr" ? "Intelligence détaillée" : "Detailed intelligence"}
+          </button>
+
+          {showIntel && (
+            <div className="space-y-2.5 mb-3 max-h-[40vh] overflow-y-auto pr-1">
+              <IntelBlock
+                icon="🚢"
+                title={lang === "fr" ? "Volume en transit" : "Transit volume"}
+                content={intel.transitVolume[l]}
+              />
+
+              <IntelBlock
+                icon="📤"
+                title={lang === "fr" ? "Exportateurs impactés" : "Affected exporters"}
+              >
+                {intel.affectedExporters[l].map((e, i) => (
+                  <div key={i} className="text-[10px] text-orange-300/80">• {e}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="📥"
+                title={lang === "fr" ? "Importateurs impactés" : "Affected importers"}
+              >
+                {intel.affectedImporters[l].map((e, i) => (
+                  <div key={i} className="text-[10px] text-red-300/80">• {e}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="🔗"
+                title={lang === "fr" ? "Flux clés" : "Key flows"}
+              >
+                {intel.keyFlows[l].map((f, i) => (
+                  <div key={i} className="text-[10px] text-petro-300 font-mono">• {f}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="🌐"
+                title={lang === "fr" ? "Contexte géopolitique" : "Geopolitical context"}
+                content={intel.geopoliticalContext[l]}
+              />
+
+              <IntelBlock
+                icon="⚠️"
+                title={lang === "fr" ? "Pourquoi c'est critique" : "Why it matters"}
+                content={intel.whyItMatters[l]}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+function IntelBlock({
+  icon,
+  title,
+  content,
+  children,
+}: {
+  icon: string;
+  title: string;
+  content?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded bg-petro-900/50 border border-petro-700/30 p-2">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[10px]">{icon}</span>
+        <span className="text-[10px] font-semibold text-petro-300 uppercase tracking-wider">{title}</span>
+      </div>
+      {content && <p className="text-[10px] text-petro-400 leading-relaxed">{content}</p>}
+      {children}
+    </div>
   );
 }
