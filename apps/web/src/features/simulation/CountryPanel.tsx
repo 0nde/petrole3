@@ -181,8 +181,8 @@ export function CountryPanel() {
         </div>
       )}
 
-      {/* Key figures */}
-      {country && (
+      {/* Key figures — only shown as fallback when no backbone baselines */}
+      {country && !baselines && (
         <div className="p-4 border-b border-petro-700/50">
           <div className="grid grid-cols-2 gap-2 text-xs">
             <InfoCell label={t("country.production")} value={`${country.production_mbpd.toFixed(2)} ${t("country.mbpd")}`} />
@@ -248,8 +248,8 @@ export function CountryPanel() {
         </div>
       )}
 
-      {/* Top suppliers */}
-      {suppliers.length > 0 && (() => {
+      {/* Top suppliers — only shown as fallback when no Comtrade data */}
+      {!comtradeTrade?.length && suppliers.length > 0 && (() => {
         const totalImports = suppliers.reduce((sum, x) => sum + x.volume, 0);
         const shown = suppliers.slice(0, 8);
         const shownTotal = shown.reduce((sum, x) => sum + x.volume, 0);
@@ -318,12 +318,12 @@ export function CountryPanel() {
           </div>
         );
       })()}
-      {suppliers.length === 0 && country && country.consumption_mbpd > country.production_mbpd && (
+      {!comtradeTrade?.length && suppliers.length === 0 && country && country.consumption_mbpd > country.production_mbpd && (
         <div className="px-4 py-2 text-[10px] text-petro-500">{t("country.no_suppliers")}</div>
       )}
 
-      {/* Top clients */}
-      {clients.length > 0 && (() => {
+      {/* Top clients — only shown as fallback when no Comtrade data */}
+      {!comtradeTrade?.length && clients.length > 0 && (() => {
         const totalExports = clients.reduce((sum, x) => sum + x.volume, 0);
         const shown = clients.slice(0, 8);
         const shownTotal = shown.reduce((sum, x) => sum + x.volume, 0);
@@ -392,7 +392,7 @@ export function CountryPanel() {
           </div>
         );
       })()}
-      {clients.length === 0 && country && country.production_mbpd > country.consumption_mbpd && (
+      {!comtradeTrade?.length && clients.length === 0 && country && country.production_mbpd > country.consumption_mbpd && (
         <div className="px-4 py-2 text-[10px] text-petro-500">{t("country.no_clients")}</div>
       )}
 
