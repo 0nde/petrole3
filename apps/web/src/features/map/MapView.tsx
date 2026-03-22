@@ -183,18 +183,19 @@ export function MapView() {
       const hasImpact = !!impact;
       const isSelected = c.code === selectedCountryCode;
       const color = hasImpact ? STRESS_COLORS[impact.stress_status] : isSelected ? SELECTED_COLOR : "#7cc8fb";
-      const size = hasImpact ? Math.max(6, Math.min(20, 6 + impact.stress_score * 0.14)) : isSelected ? 8 : 4;
+      const size = hasImpact ? Math.max(10, Math.min(22, 10 + impact.stress_score * 0.12)) : isSelected ? 14 : 10;
+      const hitArea = Math.max(24, size + 10);
 
       const el = document.createElement("div");
-      el.style.cssText = `width:${size}px;height:${size}px;cursor:pointer`;
+      el.style.cssText = `width:${hitArea}px;height:${hitArea}px;cursor:pointer;display:flex;align-items:center;justify-content:center`;
 
       const dot = document.createElement("div");
-      dot.style.cssText = `width:100%;height:100%;border-radius:50%;background:${color};border:1.5px solid ${hasImpact || isSelected ? color : "rgba(124,200,251,0.3)"};transition:transform .3s,box-shadow .3s;box-shadow:${hasImpact ? `0 0 ${size}px ${color}40` : "none"}`;
+      dot.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:1.5px solid ${hasImpact || isSelected ? color : "rgba(124,200,251,0.4)"};transition:transform .3s,box-shadow .3s;box-shadow:${hasImpact ? `0 0 ${size}px ${color}40` : "none"}`;
       el.appendChild(dot);
 
       el.title = `${c.name} (${c.code})${hasImpact ? ` — ${impact.stress_status} (${impact.stress_score.toFixed(0)})` : ""}`;
       el.addEventListener("click", () => handleCountryClick(c.code));
-      el.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.8)"; dot.style.boxShadow = `0 0 ${size + 8}px ${color}80`; });
+      el.addEventListener("mouseenter", () => { dot.style.transform = "scale(1.6)"; dot.style.boxShadow = `0 0 ${size + 8}px ${color}80`; });
       el.addEventListener("mouseleave", () => { dot.style.transform = "scale(1)"; dot.style.boxShadow = hasImpact ? `0 0 ${size}px ${color}40` : "none"; });
 
       markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([c.longitude, c.latitude]).addTo(map));
