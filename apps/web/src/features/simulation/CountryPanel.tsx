@@ -177,6 +177,63 @@ export function CountryPanel() {
         <button onClick={() => setSelectedCountryCode(null)} className="text-petro-500 hover:text-petro-200 transition-colors text-sm">✕</button>
       </div>
 
+      {/* Simulation impact — TOP PRIORITY when active */}
+      {impact && (
+        <div className="p-4 border-b border-petro-700/50">
+          <div className={`rounded-lg border p-3 mb-3 ${STATUS_BG[impact.stress_status]}`}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={`font-bold text-sm ${STATUS_TEXT[impact.stress_status]}`}>
+                {stressLabel(impact.stress_status)}
+              </span>
+              <span className="text-lg font-bold text-petro-100">
+                {impact.stress_score.toFixed(0)}<span className="text-xs text-petro-500">/100</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 bg-petro-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${STATUS_BAR[impact.stress_status]}`} style={{ width: `${Math.min(impact.demand_coverage_ratio * 100, 100)}%` }} />
+              </div>
+              <span className="text-[10px] text-petro-400 w-14 text-right">{(impact.demand_coverage_ratio * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+
+          {(() => {
+            const sc = stressConsequences[impact.stress_status];
+            if (!sc) return null;
+            return (
+              <div className="mb-3 space-y-2">
+                <p className="text-xs text-petro-300 leading-relaxed">{sc.summary[l]}</p>
+                <div className="space-y-1">
+                  {sc.consequences[l].slice(0, 4).map((c, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-[11px] text-petro-400">
+                      <span className="mt-0.5 shrink-0">•</span><span>{c}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded bg-petro-800/60 text-petro-400">
+                    {lang === "fr" ? "Impact prix" : "Price impact"}: {sc.oilPriceRange[l]}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="text-[10px] font-semibold text-petro-400 uppercase tracking-wider mb-1.5">{t("country.balance")}</div>
+          <div className="space-y-1">
+            <BalanceRow label={t("results.production")} before={impact.production_before} after={impact.production_after} unit={t("country.mbpd")} />
+            <BalanceRow label={t("results.imports")} before={impact.imports_before} after={impact.imports_after} unit={t("country.mbpd")} />
+            <BalanceRow label={t("results.exports")} before={impact.exports_before} after={impact.exports_after} unit={t("country.mbpd")} />
+            {impact.reserve_mobilized_mbpd > 0 && (
+              <div className="flex items-center justify-between text-xs px-2 py-1.5 bg-blue-900/20 rounded border border-blue-800/30">
+                <span className="text-blue-300">{t("results.reserves_used")}</span>
+                <span className="font-mono text-blue-200">+{impact.reserve_mobilized_mbpd.toFixed(2)} {t("country.mbpd")}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Profile narrative */}
       {country && (
         <div className="p-4 border-b border-petro-700/50">
@@ -347,70 +404,8 @@ export function CountryPanel() {
         </div>
       )}
 
-      {/* Simulation impact */}
-      {impact ? (
-        <div className="p-4">
-          <h4 className="text-xs font-semibold text-petro-300 uppercase tracking-wider mb-2">
-            {t("country.impact_title")}
-          </h4>
-
-          <div className={`rounded-lg border p-3 mb-3 ${STATUS_BG[impact.stress_status]}`}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className={`font-bold text-sm ${STATUS_TEXT[impact.stress_status]}`}>
-                {stressLabel(impact.stress_status)}
-              </span>
-              <span className="text-lg font-bold text-petro-100">
-                {impact.stress_score.toFixed(0)}<span className="text-xs text-petro-500">/100</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-petro-800 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${STATUS_BAR[impact.stress_status]}`} style={{ width: `${Math.min(impact.demand_coverage_ratio * 100, 100)}%` }} />
-              </div>
-              <span className="text-[10px] text-petro-400 w-14 text-right">{(impact.demand_coverage_ratio * 100).toFixed(1)}%</span>
-            </div>
-          </div>
-
-          {(() => {
-            const sc = stressConsequences[impact.stress_status];
-            if (!sc) return null;
-            return (
-              <div className="mb-3 space-y-2">
-                <p className="text-xs text-petro-300 leading-relaxed">{sc.summary[l]}</p>
-                <div className="space-y-1">
-                  {sc.consequences[l].slice(0, 4).map((c, i) => (
-                    <div key={i} className="flex items-start gap-1.5 text-[11px] text-petro-400">
-                      <span className="mt-0.5 shrink-0">•</span><span>{c}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 text-[10px]">
-                  <span className="px-1.5 py-0.5 rounded bg-petro-800/60 text-petro-400">
-                    {lang === "fr" ? "Impact prix" : "Price impact"}: {sc.oilPriceRange[l]}
-                  </span>
-                </div>
-                <div className="bg-petro-900/50 rounded p-2 border border-petro-700/30">
-                  <div className="text-[10px] text-petro-500 mb-0.5">{lang === "fr" ? "Précédent historique" : "Historical precedent"}</div>
-                  <p className="text-[11px] text-petro-400 leading-relaxed italic">{sc.historicalExample[l]}</p>
-                </div>
-              </div>
-            );
-          })()}
-
-          <div className="panel-header mb-2">{t("country.balance")}</div>
-          <div className="space-y-1 mb-3">
-            <BalanceRow label={t("results.production")} before={impact.production_before} after={impact.production_after} unit={t("country.mbpd")} />
-            <BalanceRow label={t("results.imports")} before={impact.imports_before} after={impact.imports_after} unit={t("country.mbpd")} />
-            <BalanceRow label={t("results.exports")} before={impact.exports_before} after={impact.exports_after} unit={t("country.mbpd")} />
-            {impact.reserve_mobilized_mbpd > 0 && (
-              <div className="flex items-center justify-between text-xs px-2 py-1.5 bg-blue-900/20 rounded border border-blue-800/30">
-                <span className="text-blue-300">{t("results.reserves_used")}</span>
-                <span className="font-mono text-blue-200">+{impact.reserve_mobilized_mbpd.toFixed(2)} {t("country.mbpd")}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
+      {/* No simulation message */}
+      {!impact && (
         <div className="p-4 text-xs text-petro-500 leading-relaxed">{t("country.no_impact")}</div>
       )}
     </div>

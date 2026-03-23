@@ -1,6 +1,5 @@
 import { useAppStore } from "../store/appStore";
 import { useI18n } from "../i18n/useI18n";
-import type { ViewMode } from "../types";
 
 export function Header() {
   const viewMode = useAppStore((s) => s.viewMode);
@@ -43,21 +42,15 @@ export function Header() {
           </div>
         )}
 
-        <div className="flex rounded-md border border-petro-700/50 overflow-hidden">
-          {(["simple", "expert"] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-3 py-1 text-xs font-medium transition-colors ${
-                viewMode === mode
-                  ? "bg-petro-600 text-white"
-                  : "bg-petro-800 text-petro-400 hover:text-petro-200"
-              }`}
-            >
-              {t(mode === "simple" ? "mode.simple" : "mode.expert")}
-            </button>
-          ))}
-        </div>
+        <label className="flex items-center gap-1.5 cursor-pointer opacity-40 hover:opacity-70 transition-opacity" title={lang === "fr" ? "Afficher les détails techniques" : "Show technical details"}>
+          <input
+            type="checkbox"
+            checked={viewMode === "expert"}
+            onChange={(e) => setViewMode(e.target.checked ? "expert" : "simple")}
+            className="w-3 h-3 rounded border-petro-600 bg-petro-800 text-petro-500 accent-petro-500"
+          />
+          <span className="text-[10px] text-petro-500">Expert</span>
+        </label>
 
         <button
           onClick={() => setLang(lang === "fr" ? "en" : "fr")}
