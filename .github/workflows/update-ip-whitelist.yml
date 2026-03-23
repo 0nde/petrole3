@@ -3,6 +3,13 @@ name: Update IP Whitelist
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Environment (dev or prod)"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
       reason:
         description: "Reason for IP update (optional)"
         required: false
@@ -74,27 +81,37 @@ jobs:
 
       - name: Update CloudFront Function
         run: |
+          # Determine function name based on environment
+          if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
+            FUNCTION_NAME="petrosim-dev-ip-restriction"
+          else
+            FUNCTION_NAME="petrosim-ip-restriction"
+          fi
+          
+          echo "Updating function: $FUNCTION_NAME"
+
           # Get current ETag (required for update)
           ETAG=$(aws cloudfront describe-function \
-            --name petrosim-ip-restriction \
+            --name "$FUNCTION_NAME" \
             --query "ETag" --output text)
 
           # Update the function code
           aws cloudfront update-function \
-            --name petrosim-ip-restriction \
+            --name "$FUNCTION_NAME" \
             --function-config '{"Comment":"IP whitelist for PetroSim - updated via GitHub Actions","Runtime":"cloudfront-js-2.0"}' \
             --function-code fileb:///tmp/cf-function.js \
             --if-match "$ETAG"
 
           # Publish the updated function
           ETAG=$(aws cloudfront describe-function \
-            --name petrosim-ip-restriction \
+            --name "$FUNCTION_NAME" \
             --query "ETag" --output text)
 
           aws cloudfront publish-function \
-            --name petrosim-ip-restriction \
+            --name "$FUNCTION_NAME" \
             --if-match "$ETAG"
 
-          echo "✅ CloudFront Function updated and published"
+          echo "✅ CloudFront Function updated and published: $FUNCTION_NAME"
+          echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Allowed IPs: ${{ secrets.ALLOWED_IPS }}"
           echo "Reason: ${{ github.event.inputs.reason || 'No reason provided' }}"
