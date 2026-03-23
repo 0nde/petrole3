@@ -129,8 +129,8 @@ def seed(session: Session) -> None:
         scenario_id = uuid.uuid4()
         session.execute(
             text("""
-                INSERT INTO scenarios (id, name, name_fr, description, description_fr, is_preset)
-                VALUES (:id, :name, :name_fr, :description, :description_fr, :is_preset)
+                INSERT INTO scenarios (id, name, name_fr, description, description_fr, is_preset, category)
+                VALUES (:id, :name, :name_fr, :description, :description_fr, :is_preset, :category)
             """),
             {
                 "id": str(scenario_id),
@@ -139,6 +139,7 @@ def seed(session: Session) -> None:
                 "description": s.get("description"),
                 "description_fr": s.get("description_fr"),
                 "is_preset": True,
+                "category": s.get("category"),
             },
         )
         for a in s.get("actions", []):

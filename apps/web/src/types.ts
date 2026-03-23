@@ -84,6 +84,7 @@ export interface Scenario {
   id: string;
   name: string;
   name_fr: string | null;
+  category: string | null;
   description: string | null;
   description_fr: string | null;
   is_preset: boolean;

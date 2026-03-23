@@ -45,6 +45,62 @@ export const scenarioIntelligence: Record<string, ScenarioIntel> = {
     },
   },
 
+  "hormuz_china_20": {
+    matchKey: "hormuz_china_20",
+    transitVolume: {
+      en: "~21 Mb/d blocked — except China retains 20% of its Gulf flows (~0.9 Mb/d saved)",
+      fr: "~21 Mb/j bloqués — sauf la Chine qui conserve 20 % de ses flux du Golfe (~0,9 Mb/j sauvés)",
+    },
+    affectedExporters: {
+      en: ["All Gulf exporters fully blocked except for China-bound flows", "SAU→CHN: 0.32 Mb/d still flows (20% of 1.58)", "IRQ→CHN: 0.22 Mb/d still flows (20% of 1.10)", "ARE/KWT/OMN→CHN: partial flows continue"],
+      fr: ["Tous les exportateurs du Golfe totalement bloqués sauf flux vers la Chine", "SAU→CHN : 0,32 Mb/j continuent (20 % de 1,58)", "IRQ→CHN : 0,22 Mb/j continuent (20 % de 1,10)", "EAU/KWT/OMN→CHN : flux partiels maintenus"],
+    },
+    affectedImporters: {
+      en: ["Japan, South Korea, Taiwan: FULLY blocked (no exemption)", "India: FULLY blocked (no exemption)", "China: retains 20% — ~0.9 Mb/d of ~4.5 Mb/d Gulf crude", "Europe: FULLY blocked via Suez route"],
+      fr: ["Japon, Corée du Sud, Taïwan : TOTALEMENT bloqués (aucune exemption)", "Inde : TOTALEMENT bloquée (aucune exemption)", "Chine : conserve 20 % — ~0,9 Mb/j sur ~4,5 Mb/j de brut du Golfe", "Europe : TOTALEMENT bloquée via route Suez"],
+    },
+    keyFlows: {
+      en: ["SAU→CHN 1.58 → 0.32 Mb/d (80% loss, 20% corridor)", "IRQ→CHN 1.10 → 0.22 Mb/d (80% loss)", "SAU→JPN 0.95 → 0 (no exemption)", "SAU→IND 0.78 → 0 (no exemption)", "China still loses 80% of Gulf crude — massive impact"],
+      fr: ["SAU→CHN 1,58 → 0,32 Mb/j (perte 80 %, corridor 20 %)", "IRQ→CHN 1,10 → 0,22 Mb/j (perte 80 %)", "SAU→JPN 0,95 → 0 (aucune exemption)", "SAU→IND 0,78 → 0 (aucune exemption)", "La Chine perd quand même 80 % de son brut du Golfe — impact massif"],
+    },
+    geopoliticalContext: {
+      en: "China is Iran's largest oil customer (~1.2 Mb/d, much of it undeclared). In a crisis, Beijing could negotiate a side corridor through IRGC-controlled waters near Bandar Abbas. China's navy has conducted joint exercises with Iran since 2019. This reflects the reality that geopolitical blocs don't enforce blockades uniformly.",
+      fr: "La Chine est le plus gros client pétrolier de l'Iran (~1,2 Mb/j, en grande partie non déclaré). En cas de crise, Pékin pourrait négocier un corridor latéral via les eaux contrôlées par les Gardiens de la révolution près de Bandar Abbas. La marine chinoise a mené des exercices conjoints avec l'Iran depuis 2019. Cela reflète la réalité que les blocs géopolitiques n'appliquent pas les blocages uniformément.",
+    },
+    whyItMatters: {
+      en: "This nuanced scenario shows that even with a 'side deal', China still loses 80% of its Gulf crude. Japan and Korea get NOTHING. It tests whether China's bilateral diplomacy can provide meaningful relief — the answer is: barely.",
+      fr: "Ce scénario nuancé montre que même avec un « accord bilatéral », la Chine perd encore 80 % de son brut du Golfe. Le Japon et la Corée ne reçoivent RIEN. Il teste si la diplomatie bilatérale chinoise peut apporter un soulagement significatif — la réponse est : à peine.",
+    },
+  },
+
+  "hormuz_china_india_10": {
+    matchKey: "hormuz_china_india_10",
+    transitVolume: {
+      en: "~21 Mb/d blocked — China and India each retain 10% of their Gulf flows (~0.7 Mb/d total saved)",
+      fr: "~21 Mb/j bloqués — Chine et Inde conservent chacune 10 % de leurs flux du Golfe (~0,7 Mb/j total sauvés)",
+    },
+    affectedExporters: {
+      en: ["All Gulf exporters fully blocked except minimal China/India-bound flows", "SAU→CHN: 0.16 Mb/d survives (10% of 1.58)", "SAU→IND: 0.08 Mb/d survives (10% of 0.78)", "IRQ→IND: 0.10 Mb/d survives (10% of 0.98)"],
+      fr: ["Tous les exportateurs du Golfe totalement bloqués sauf flux minimaux Chine/Inde", "SAU→CHN : 0,16 Mb/j survit (10 % de 1,58)", "SAU→IND : 0,08 Mb/j survit (10 % de 0,78)", "IRQ→IND : 0,10 Mb/j survit (10 % de 0,98)"],
+    },
+    affectedImporters: {
+      en: ["Japan, South Korea, Taiwan, Europe: FULLY blocked", "China: retains 10% — ~0.45 Mb/d of ~4.5 Mb/d Gulf crude (minimal)", "India: retains 10% — ~0.27 Mb/d of ~2.7 Mb/d Gulf crude (minimal)", "Both still face catastrophic shortfalls despite 'deals'"],
+      fr: ["Japon, Corée du Sud, Taïwan, Europe : TOTALEMENT bloqués", "Chine : conserve 10 % — ~0,45 Mb/j sur ~4,5 Mb/j de brut du Golfe (minimal)", "Inde : conserve 10 % — ~0,27 Mb/j sur ~2,7 Mb/j de brut du Golfe (minimal)", "Les deux font face à des pénuries catastrophiques malgré les « accords »"],
+    },
+    keyFlows: {
+      en: ["SAU→CHN 1.58 → 0.16 Mb/d (90% loss)", "IRQ→IND 0.98 → 0.10 Mb/d (90% loss)", "SAU→JPN 0.95 → 0 (no deal)", "KWT→KOR 0.30 → 0 (no deal)", "Total saved: ~0.7 Mb/d out of 21 Mb/d — drops in the ocean"],
+      fr: ["SAU→CHN 1,58 → 0,16 Mb/j (perte 90 %)", "IRQ→IND 0,98 → 0,10 Mb/j (perte 90 %)", "SAU→JPN 0,95 → 0 (aucun accord)", "KWT→KOR 0,30 → 0 (aucun accord)", "Total sauvé : ~0,7 Mb/j sur 21 Mb/j — des gouttes d'eau"],
+    },
+    geopoliticalContext: {
+      en: "China and India together import ~7 Mb/d of Gulf crude. Both have refused to fully align with Western sanctions on Russia, and could similarly negotiate minimal corridors with Iran. India has purchased Iranian crude via intermediaries even under US sanctions. But 10% is barely symbolic — it keeps diplomatic channels open, not economies running.",
+      fr: "La Chine et l'Inde importent ensemble ~7 Mb/j de brut du Golfe. Les deux ont refusé de s'aligner totalement sur les sanctions occidentales contre la Russie, et pourraient négocier des corridors minimaux avec l'Iran. L'Inde a acheté du brut iranien via des intermédiaires même sous sanctions US. Mais 10 % est à peine symbolique — ça maintient les canaux diplomatiques ouverts, pas les économies.",
+    },
+    whyItMatters: {
+      en: "This scenario demonstrates the limits of bilateral diplomacy during a chokepoint crisis. Even if the two largest non-Western oil importers negotiate special deals, 10% is a trickle. It highlights the asymmetric vulnerability: Japan and Korea — US allies — get zero, creating maximum geopolitical tension.",
+      fr: "Ce scénario démontre les limites de la diplomatie bilatérale durant une crise de détroit. Même si les deux plus gros importateurs non-occidentaux négocient des accords spéciaux, 10 % est un filet. Cela met en lumière la vulnérabilité asymétrique : le Japon et la Corée — alliés US — n'obtiennent rien, créant une tension géopolitique maximale.",
+    },
+  },
+
   "hormuz_partial": {
     matchKey: "hormuz_partial",
     transitVolume: {
@@ -126,6 +182,34 @@ export const scenarioIntelligence: Record<string, ScenarioIntel> = {
     whyItMatters: {
       en: "A Malacca blockade would devastate Asian economies. China imports 70% of its oil, and most of it transits Malacca. Japan imports 99% of its oil — Malacca is an existential threat.",
       fr: "Un blocage de Malacca dévasterait les économies asiatiques. La Chine importe 70 % de son pétrole, et la majorité transite par Malacca. Le Japon importe 99 % de son pétrole — Malacca est une menace existentielle.",
+    },
+  },
+
+  "iran_sanctions": {
+    matchKey: "iran_sanctions",
+    transitVolume: {
+      en: "Iran exports ~1.3 Mb/d (mostly to China) + Hormuz 40% disrupted → ~8.4 Mb/d at risk",
+      fr: "L'Iran exporte ~1,3 Mb/j (surtout vers la Chine) + Ormuz perturbé à 40 % → ~8,4 Mb/j à risque",
+    },
+    affectedExporters: {
+      en: ["Iran: all exports embargoed (1.3 Mb/d)", "All Gulf exporters: 40% Hormuz disruption (SAU, IRQ, UAE, KWT, QAT, OMN)", "Iran uses Hormuz as retaliation leverage"],
+      fr: ["Iran : toutes les exportations sous embargo (1,3 Mb/j)", "Tous les exportateurs du Golfe : perturbation Ormuz 40 % (SAU, IRQ, EAU, KWT, QAT, OMN)", "L'Iran utilise Ormuz comme levier de représailles"],
+    },
+    affectedImporters: {
+      en: ["China: loses 1.2 Mb/d Iranian crude + 40% of Gulf crude", "India: loses 0.1 Mb/d Iranian + 40% of Gulf crude", "Japan, Korea: 40% reduction in all Gulf imports", "Europe: 40% reduction via Suez route"],
+      fr: ["Chine : perd 1,2 Mb/j de brut iranien + 40 % du brut du Golfe", "Inde : perd 0,1 Mb/j iranien + 40 % du brut du Golfe", "Japon, Corée : réduction 40 % de tous les imports du Golfe", "Europe : réduction 40 % via route Suez"],
+    },
+    keyFlows: {
+      en: ["IRN→CHN 1.20 Mb/d: EMBARGOED", "IRN→IND 0.10 Mb/d: EMBARGOED", "SAU→CHN 1.58 → 0.95 Mb/d (40% Hormuz disruption)", "SAU→JPN 0.95 → 0.57 Mb/d", "Compound effect: embargo + chokepoint disruption"],
+      fr: ["IRN→CHN 1,20 Mb/j : SOUS EMBARGO", "IRN→IND 0,10 Mb/j : SOUS EMBARGO", "SAU→CHN 1,58 → 0,95 Mb/j (perturbation Ormuz 40 %)", "SAU→JPN 0,95 → 0,57 Mb/j", "Effet composé : embargo + perturbation du détroit"],
+    },
+    geopoliticalContext: {
+      en: "This is the most realistic Iran escalation scenario. US sanctions on Iran have been in place since 1979, with enforcement waves in 2012 and 2018. Iran has repeatedly threatened to close Hormuz if its oil exports are reduced to zero. A 40% disruption represents mining of shipping lanes and aggressive IRGC naval patrols.",
+      fr: "C'est le scénario d'escalade iranien le plus réaliste. Les sanctions US contre l'Iran sont en place depuis 1979, avec des vagues d'application en 2012 et 2018. L'Iran a menacé à plusieurs reprises de fermer Ormuz si ses exportations pétrolières sont réduites à zéro. Une perturbation de 40 % représente le minage des voies de navigation et des patrouilles navales agressives des Gardiens de la révolution.",
+    },
+    whyItMatters: {
+      en: "Iran controls the northern shore of Hormuz. Even without a full blockade, mine threats and aggressive naval activity can reduce transit by 30-50%. Insurance premiums spike, shipping companies self-impose restrictions, and effective throughput drops dramatically.",
+      fr: "L'Iran contrôle la rive nord d'Ormuz. Même sans blocage total, les menaces de mines et l'activité navale agressive peuvent réduire le transit de 30-50 %. Les primes d'assurance explosent, les compagnies maritimes s'auto-imposent des restrictions, et le débit effectif chute dramatiquement.",
     },
   },
 
@@ -282,9 +366,16 @@ export function getScenarioIntel(scenario: { name: string; actions: { action_typ
   if (nameLower.includes("combined gulf") || nameLower.includes("combinée du golfe")) return scenarioIntelligence["combined_gulf"] ?? null;
   if (nameLower.includes("suez") && nameLower.includes("bab")) return scenarioIntelligence["suez_bab"] ?? null;
   if (nameLower.includes("nigeri") && nameLower.includes("bosphorus")) return scenarioIntelligence["bosphorus_nigeria"] ?? null;
+  if (nameLower.includes("iran") || nameLower.includes("iranien")) return scenarioIntelligence["iran_sanctions"] ?? null;
 
   // Single-action scenarios
   if (a0.action_type === "chokepoint_block" && a0.target_id === "hormuz") {
+    // Check for exempt_importers in params
+    const exempt = (a0 as { params?: Record<string, unknown> }).params?.exempt_importers as Record<string, number> | undefined;
+    if (exempt) {
+      if (exempt["IND"] !== undefined) return scenarioIntelligence["hormuz_china_india_10"] ?? null;
+      if (exempt["CHN"] !== undefined) return scenarioIntelligence["hormuz_china_20"] ?? null;
+    }
     return a0.severity >= 0.9
       ? scenarioIntelligence["hormuz_full"] ?? null
       : scenarioIntelligence["hormuz_partial"] ?? null;

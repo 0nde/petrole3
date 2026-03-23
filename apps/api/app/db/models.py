@@ -154,6 +154,7 @@ class Scenario(Base):
     description = Column(Text, nullable=True)
     description_fr = Column(Text, nullable=True)
     is_preset = Column(Boolean, nullable=False, default=False)
+    category = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

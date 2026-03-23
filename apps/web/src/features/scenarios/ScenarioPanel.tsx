@@ -61,21 +61,51 @@ export function ScenarioPanel() {
 
       {/* Scenario list */}
       <div className="flex-1 overflow-y-auto">
-        {presets.length > 0 && (
-          <div>
-            <div className="panel-header">{t("scenarios.preset")}</div>
-            <div className="p-2 space-y-1">
-              {presets.map((s) => (
-                <ScenarioCard
-                  key={s.id}
-                  scenario={s}
-                  isSelected={selectedIds.has(s.id)}
-                  onSelect={() => toggleScenario(s)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {presets.length > 0 && (() => {
+          const iranPresets = presets.filter((s) => s.category === "iran");
+          const otherPresets = presets.filter((s) => s.category !== "iran");
+          return (
+            <>
+              {iranPresets.length > 0 && (
+                <div>
+                  <div className="panel-header flex items-center gap-1.5">
+                    <span className="text-orange-400">&#9632;</span>
+                    {lang === "fr" ? "Iran / Ormuz" : "Iran / Hormuz"}
+                    <span className="ml-auto text-[9px] font-normal text-orange-400/70">
+                      {iranPresets.length} {lang === "fr" ? "scénarios" : "scenarios"}
+                    </span>
+                  </div>
+                  <div className="p-2 space-y-1 border-l-2 border-orange-500/30 ml-1">
+                    {iranPresets.map((s) => (
+                      <ScenarioCard
+                        key={s.id}
+                        scenario={s}
+                        isSelected={selectedIds.has(s.id)}
+                        onSelect={() => toggleScenario(s)}
+                        highlight
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {otherPresets.length > 0 && (
+                <div>
+                  <div className="panel-header">{t("scenarios.preset")}</div>
+                  <div className="p-2 space-y-1">
+                    {otherPresets.map((s) => (
+                      <ScenarioCard
+                        key={s.id}
+                        scenario={s}
+                        isSelected={selectedIds.has(s.id)}
+                        onSelect={() => toggleScenario(s)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {custom.length > 0 && (
           <div>
@@ -147,10 +177,12 @@ function ScenarioCard({
   scenario,
   isSelected,
   onSelect,
+  highlight,
 }: {
   scenario: Scenario;
   isSelected: boolean;
   onSelect: () => void;
+  highlight?: boolean;
 }) {
   const { t, lang, actionLabel } = useI18n();
   const actionTypes = [...new Set(scenario.actions.map((a) => a.action_type))];
@@ -160,16 +192,20 @@ function ScenarioCard({
       onClick={onSelect}
       className={`w-full text-left p-3 rounded-md transition-all ${
         isSelected
-          ? "bg-petro-700/50 border border-petro-500/50 ring-1 ring-petro-400/30"
-          : "bg-petro-900/30 border border-transparent hover:bg-petro-800/50 hover:border-petro-700/30"
+          ? highlight
+            ? "bg-orange-900/30 border border-orange-500/50 ring-1 ring-orange-400/30"
+            : "bg-petro-700/50 border border-petro-500/50 ring-1 ring-petro-400/30"
+          : highlight
+            ? "bg-orange-950/20 border border-orange-800/20 hover:bg-orange-900/25 hover:border-orange-700/30"
+            : "bg-petro-900/30 border border-transparent hover:bg-petro-800/50 hover:border-petro-700/30"
       }`}
     >
       <div className="flex items-start justify-between">
-        <div className="font-medium text-sm text-petro-100">
+        <div className={`font-medium text-sm ${highlight ? "text-orange-100" : "text-petro-100"}`}>
           {lang === "fr" && scenario.name_fr ? scenario.name_fr : scenario.name}
         </div>
         {scenario.is_preset && (
-          <span className="badge bg-petro-700 text-petro-300 text-[10px] ml-2 shrink-0">
+          <span className={`badge text-[10px] ml-2 shrink-0 ${highlight ? "bg-orange-800/50 text-orange-300" : "bg-petro-700 text-petro-300"}`}>
             {t("scenarios.preset_badge")}
           </span>
         )}
