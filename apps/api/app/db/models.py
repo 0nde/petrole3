@@ -154,6 +154,7 @@ class Scenario(Base):
     description = Column(Text, nullable=True)
     description_fr = Column(Text, nullable=True)
     is_preset = Column(Boolean, nullable=False, default=False)
+    category = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -292,3 +293,104 @@ class SourceProvenance(Base):
     coverage = Column(String(200), nullable=True)
     confidence = Column(String(20), nullable=True)
     notes = Column(Text, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Enriched data tables (from petrole-datas backbone)
+# ---------------------------------------------------------------------------
+
+class AnnualBaseline(Base):
+    """Layer 1: Annual structural reference data — one row per (country, indicator, year).
+    Contains 20 indicators with machine-verified confidence scores."""
+    __tablename__ = "annual_baselines"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    country_code = Column(String(2), nullable=False)
+    indicator = Column(String(60), nullable=False)
+    value = Column(Float, nullable=False)
+    unit = Column(String(30), nullable=False)
+    reference_year = Column(Integer, nullable=False)
+    source_name = Column(String(200), nullable=False)
+    source_url = Column(String(500), nullable=True)
+    definition = Column(Text, nullable=True)
+    confidence_score = Column(String(20), nullable=False, default="Low")
+    verification_method = Column(String(30), nullable=True)
+    verified_date = Column(String(30), nullable=True)
+    raw_source_snippet = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_ab_country", "country_code"),
+        Index("ix_ab_indicator", "indicator"),
+        Index("ix_ab_country_indicator", "country_code", "indicator"),
+    )
+
+
+class TradeFlowDetailed(Base):
+    """Detailed trade flow data from UN Comtrade (HS 2709 — crude petroleum).
+    One row per (importer, partner, year) with quantities and percentages."""
+    __tablename__ = "trade_flows_detailed"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    country_code = Column(String(2), nullable=False)
+    flow_type = Column(String(10), nullable=False, default="import")
+    partner_country = Column(String(100), nullable=False)
+    quantity = Column(Float, nullable=False)
+    unit = Column(String(10), nullable=False, default="kt")
+    percentage = Column(Float, nullable=False)
+    reference_year = Column(Integer, nullable=False)
+    reference_month = Column(Integer, nullable=True)
+    source_name = Column(String(200), nullable=False)
+    source_url = Column(String(500), nullable=True)
+    confidence_score = Column(String(20), nullable=False, default="High")
+    verification_method = Column(String(30), nullable=True)
+    verified_date = Column(String(30), nullable=True)
+
+    __table_args__ = (
+        Index("ix_tfd_country", "country_code"),
+    )
+
+
+class VerificationLog(Base):
+    """Audit trail: each row = one machine verification attempt for a data point."""
+    __tablename__ = "verification_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    table_name = Column(String(50), nullable=False)
+    record_id = Column(Integer, nullable=False)
+    country_code = Column(String(2), nullable=False)
+    indicator = Column(String(60), nullable=False)
+    claimed_value = Column(Float, nullable=False)
+    source_url = Column(String(500), nullable=False)
+    verification_date = Column(String(30), nullable=False)
+    method = Column(String(30), nullable=False)
+    found_value = Column(Float, nullable=True)
+    match = Column(Boolean, nullable=False, default=False)
+    tolerance_pct = Column(Float, nullable=False, default=5.0)
+    raw_snippet = Column(Text, nullable=True)
+    result = Column(String(30), nullable=False)
+    notes = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_vl_country", "country_code"),
+        Index("ix_vl_result", "result"),
+    )
+
+
+class SimulationParameterData(Base):
+    """Hypothetical simulation parameters (e.g., strategic release rates)
+    with explicit justification and hypothesis flag."""
+    __tablename__ = "simulation_parameters_data"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    country_code = Column(String(2), nullable=False)
+    parameter_name = Column(String(60), nullable=False)
+    value = Column(Float, nullable=False)
+    unit = Column(String(30), nullable=False)
+    source_name = Column(String(200), nullable=False)
+    source_url = Column(String(500), nullable=True)
+    is_hypothesis = Column(Boolean, nullable=False, default=True)
+    justification = Column(Text, nullable=False)
+
+    __table_args__ = (
+        Index("ix_spd_country", "country_code"),
+    )

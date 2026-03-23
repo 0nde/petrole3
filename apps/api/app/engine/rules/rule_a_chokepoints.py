@@ -32,13 +32,23 @@ def apply_rule_a(state: SimulationState) -> None:
             )
             continue
         cp.severity = max(cp.severity, action.severity)  # take worst severity
+
+        # Per-importer exemptions: {"CHN": 0.2} means China keeps 20% open
+        exempt = action.params.get("exempt_importers", {})
+        if exempt:
+            for code, open_frac in exempt.items():
+                cp.exempt_importers[code] = open_frac
+
+        desc = f"Chokepoint '{cp.name}' disrupted at {action.severity * 100:.0f}% severity"
+        if exempt:
+            exemptions = ", ".join(f"{k} keeps {v*100:.0f}%" for k, v in exempt.items())
+            desc += f" (exemptions: {exemptions})"
+
         state.add_step(
             rule_id="A",
-            description=(
-                f"Chokepoint '{cp.name}' disrupted at {action.severity * 100:.0f}% severity"
-            ),
+            description=desc,
             affected_entities={"chokepoints": [cp.id]},
-            detail={"severity": action.severity},
+            detail={"severity": action.severity, "exempt_importers": exempt},
         )
 
     # 3. Apply route block severities
@@ -72,11 +82,14 @@ def apply_rule_a(state: SimulationState) -> None:
         # Calculate combined capacity factor from chokepoints on this route
         capacity_factor = 1.0
 
-        # Chokepoint-based reduction (multiplicative)
+        # Chokepoint-based reduction (multiplicative, with per-importer exemptions)
         for cp_id in flow.chokepoint_ids:
             cp = state.chokepoints.get(cp_id)
             if cp and cp.severity > 0:
-                capacity_factor *= (1.0 - cp.severity)
+                # Check if this flow's importer has an exemption
+                open_frac = cp.exempt_importers.get(flow.importer_code, 0.0)
+                effective_severity = cp.severity * (1.0 - open_frac)
+                capacity_factor *= (1.0 - effective_severity)
 
         # Direct route block
         if route.severity > 0:

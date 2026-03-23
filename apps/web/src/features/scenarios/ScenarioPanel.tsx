@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useScenarios, useRunSimulation, useRunCombinedSimulation } from "../../api/hooks";
 import { useAppStore } from "../../store/appStore";
 import { useI18n } from "../../i18n/useI18n";
+import { getScenarioIntel } from "../../data/scenarioIntelligence";
 import type { Scenario } from "../../types";
+import type { Lang } from "../../i18n/translations";
 
 function scenarioDisplayName(s: Scenario, lang: string): string {
   return lang === "fr" && s.name_fr ? s.name_fr : s.name;
@@ -58,21 +61,51 @@ export function ScenarioPanel() {
 
       {/* Scenario list */}
       <div className="flex-1 overflow-y-auto">
-        {presets.length > 0 && (
-          <div>
-            <div className="panel-header">{t("scenarios.preset")}</div>
-            <div className="p-2 space-y-1">
-              {presets.map((s) => (
-                <ScenarioCard
-                  key={s.id}
-                  scenario={s}
-                  isSelected={selectedIds.has(s.id)}
-                  onSelect={() => toggleScenario(s)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {presets.length > 0 && (() => {
+          const iranPresets = presets.filter((s) => s.category === "iran");
+          const otherPresets = presets.filter((s) => s.category !== "iran");
+          return (
+            <>
+              {iranPresets.length > 0 && (
+                <div>
+                  <div className="panel-header flex items-center gap-1.5">
+                    <span className="text-orange-400">&#9632;</span>
+                    {lang === "fr" ? "Iran / Ormuz" : "Iran / Hormuz"}
+                    <span className="ml-auto text-[9px] font-normal text-orange-400/70">
+                      {iranPresets.length} {lang === "fr" ? "scénarios" : "scenarios"}
+                    </span>
+                  </div>
+                  <div className="p-2 space-y-1 border-l-2 border-orange-500/30 ml-1">
+                    {iranPresets.map((s) => (
+                      <ScenarioCard
+                        key={s.id}
+                        scenario={s}
+                        isSelected={selectedIds.has(s.id)}
+                        onSelect={() => toggleScenario(s)}
+                        highlight
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {otherPresets.length > 0 && (
+                <div>
+                  <div className="panel-header">{t("scenarios.preset")}</div>
+                  <div className="p-2 space-y-1">
+                    {otherPresets.map((s) => (
+                      <ScenarioCard
+                        key={s.id}
+                        scenario={s}
+                        isSelected={selectedIds.has(s.id)}
+                        onSelect={() => toggleScenario(s)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {custom.length > 0 && (
           <div>
@@ -95,16 +128,7 @@ export function ScenarioPanel() {
       {selectedScenarios.length > 0 && (
         <div className="border-t border-petro-700/50 p-4 shrink-0">
           {selectedScenarios.length === 1 ? (
-            <>
-              <h3 className="font-semibold text-petro-100 text-sm mb-1">
-                {scenarioDisplayName(selectedScenarios[0]!, lang)}
-              </h3>
-              {scenarioDisplayDesc(selectedScenarios[0]!, lang) && (
-                <p className="text-xs text-petro-400 mb-2 leading-relaxed">
-                  {scenarioDisplayDesc(selectedScenarios[0]!, lang)}
-                </p>
-              )}
-            </>
+            <SingleScenarioDetail scenario={selectedScenarios[0]!} lang={lang} />
           ) : (
             <>
               <h3 className="font-semibold text-blue-300 text-sm mb-1">
@@ -153,10 +177,12 @@ function ScenarioCard({
   scenario,
   isSelected,
   onSelect,
+  highlight,
 }: {
   scenario: Scenario;
   isSelected: boolean;
   onSelect: () => void;
+  highlight?: boolean;
 }) {
   const { t, lang, actionLabel } = useI18n();
   const actionTypes = [...new Set(scenario.actions.map((a) => a.action_type))];
@@ -166,16 +192,20 @@ function ScenarioCard({
       onClick={onSelect}
       className={`w-full text-left p-3 rounded-md transition-all ${
         isSelected
-          ? "bg-petro-700/50 border border-petro-500/50 ring-1 ring-petro-400/30"
-          : "bg-petro-900/30 border border-transparent hover:bg-petro-800/50 hover:border-petro-700/30"
+          ? highlight
+            ? "bg-orange-900/30 border border-orange-500/50 ring-1 ring-orange-400/30"
+            : "bg-petro-700/50 border border-petro-500/50 ring-1 ring-petro-400/30"
+          : highlight
+            ? "bg-orange-950/20 border border-orange-800/20 hover:bg-orange-900/25 hover:border-orange-700/30"
+            : "bg-petro-900/30 border border-transparent hover:bg-petro-800/50 hover:border-petro-700/30"
       }`}
     >
       <div className="flex items-start justify-between">
-        <div className="font-medium text-sm text-petro-100">
+        <div className={`font-medium text-sm ${highlight ? "text-orange-100" : "text-petro-100"}`}>
           {lang === "fr" && scenario.name_fr ? scenario.name_fr : scenario.name}
         </div>
         {scenario.is_preset && (
-          <span className="badge bg-petro-700 text-petro-300 text-[10px] ml-2 shrink-0">
+          <span className={`badge text-[10px] ml-2 shrink-0 ${highlight ? "bg-orange-800/50 text-orange-300" : "bg-petro-700 text-petro-300"}`}>
             {t("scenarios.preset_badge")}
           </span>
         )}
@@ -194,5 +224,107 @@ function ScenarioCard({
         </span>
       </div>
     </button>
+  );
+}
+
+function SingleScenarioDetail({ scenario, lang }: { scenario: Scenario; lang: string }) {
+  const [showIntel, setShowIntel] = useState(false);
+  const l = lang as Lang;
+  const intel = getScenarioIntel(scenario);
+  const desc = scenarioDisplayDesc(scenario, lang);
+
+  return (
+    <>
+      <h3 className="font-semibold text-petro-100 text-sm mb-1">
+        {scenarioDisplayName(scenario, lang)}
+      </h3>
+      {desc && (
+        <p className="text-xs text-petro-400 mb-2 leading-relaxed">{desc}</p>
+      )}
+
+      {intel && (
+        <>
+          <button
+            onClick={() => setShowIntel(!showIntel)}
+            className="text-[10px] text-blue-400 hover:text-blue-300 mb-2 flex items-center gap-1"
+          >
+            <span className={`transition-transform ${showIntel ? "rotate-90" : ""}`}>&#9654;</span>
+            {lang === "fr" ? "Intelligence détaillée" : "Detailed intelligence"}
+          </button>
+
+          {showIntel && (
+            <div className="space-y-2.5 mb-3 max-h-[40vh] overflow-y-auto pr-1">
+              <IntelBlock
+                icon="🚢"
+                title={lang === "fr" ? "Volume en transit" : "Transit volume"}
+                content={intel.transitVolume[l]}
+              />
+
+              <IntelBlock
+                icon="📤"
+                title={lang === "fr" ? "Exportateurs impactés" : "Affected exporters"}
+              >
+                {intel.affectedExporters[l].map((e, i) => (
+                  <div key={i} className="text-[10px] text-orange-300/80">• {e}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="📥"
+                title={lang === "fr" ? "Importateurs impactés" : "Affected importers"}
+              >
+                {intel.affectedImporters[l].map((e, i) => (
+                  <div key={i} className="text-[10px] text-red-300/80">• {e}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="🔗"
+                title={lang === "fr" ? "Flux clés" : "Key flows"}
+              >
+                {intel.keyFlows[l].map((f, i) => (
+                  <div key={i} className="text-[10px] text-petro-300 font-mono">• {f}</div>
+                ))}
+              </IntelBlock>
+
+              <IntelBlock
+                icon="🌐"
+                title={lang === "fr" ? "Contexte géopolitique" : "Geopolitical context"}
+                content={intel.geopoliticalContext[l]}
+              />
+
+              <IntelBlock
+                icon="⚠️"
+                title={lang === "fr" ? "Pourquoi c'est critique" : "Why it matters"}
+                content={intel.whyItMatters[l]}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+function IntelBlock({
+  icon,
+  title,
+  content,
+  children,
+}: {
+  icon: string;
+  title: string;
+  content?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded bg-petro-900/50 border border-petro-700/30 p-2">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[10px]">{icon}</span>
+        <span className="text-[10px] font-semibold text-petro-300 uppercase tracking-wider">{title}</span>
+      </div>
+      {content && <p className="text-[10px] text-petro-400 leading-relaxed">{content}</p>}
+      {children}
+    </div>
   );
 }

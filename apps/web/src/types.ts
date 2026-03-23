@@ -84,6 +84,7 @@ export interface Scenario {
   id: string;
   name: string;
   name_fr: string | null;
+  category: string | null;
   description: string | null;
   description_fr: string | null;
   is_preset: boolean;
@@ -155,3 +156,57 @@ export type StressStatus = "stable" | "tension" | "critical" | "emergency";
 export type ViewMode = "simple" | "expert";
 
 export type ActivePanel = "scenarios" | "results" | "journal" | "country" | "chokepoint" | "news" | "crisis" | null;
+
+// ---------------------------------------------------------------------------
+// Enriched data types (petrole-datas backbone)
+// ---------------------------------------------------------------------------
+
+export type ConfidenceScore = "Very High" | "High" | "Medium" | "Low" | "Hypothesis";
+
+export interface BaselineRecord {
+  id: number;
+  indicator: string;
+  value: number;
+  unit: string;
+  reference_year: number;
+  source_name: string;
+  source_url: string | null;
+  definition: string | null;
+  confidence_score: ConfidenceScore;
+  verification_method: string | null;
+  verified_date: string | null;
+}
+
+export interface CountryBaselines {
+  country_code: string;
+  oil_core: BaselineRecord[];
+  energy_structure: BaselineRecord[];
+  electricity_mix: BaselineRecord[];
+  climate: BaselineRecord[];
+  all: BaselineRecord[];
+}
+
+export interface TradeFlowDetail {
+  id: number;
+  country_code: string;
+  flow_type: string;
+  partner_country: string;
+  quantity: number;
+  unit: string;
+  percentage: number;
+  reference_year: number;
+  source_name: string;
+  source_url: string | null;
+  confidence_score: ConfidenceScore;
+  verification_method: string | null;
+}
+
+export interface VerificationSummary {
+  total_verifications: number;
+  confirmed: number;
+  mismatch: number;
+  parse_failed: number;
+  total_baselines: number;
+  very_high_count: number;
+  pct_verified: number;
+}

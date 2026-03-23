@@ -2,11 +2,46 @@
   {
     "name": "Hormuz Full Blockade",
     "name_fr": "Blocage total d'Ormuz",
-    "description": "Complete blockade of the Strait of Hormuz — the world's most critical oil chokepoint handling ~21 Mb/d. Simulates a severe geopolitical crisis in the Persian Gulf.",
-    "description_fr": "Blocage complet du détroit d'Ormuz — le point de passage pétrolier le plus critique au monde (~21 Mb/j). Simule une crise géopolitique majeure dans le Golfe Persique.",
+    "description": "Complete blockade of the Strait of Hormuz — the world's most critical oil chokepoint handling ~21 Mb/d. Simulates a severe geopolitical crisis in the Persian Gulf. No tanker can pass.",
+    "description_fr": "Blocage complet du détroit d'Ormuz — le point de passage pétrolier le plus critique au monde (~21 Mb/j). Aucun pétrolier ne passe. Crise géopolitique maximale dans le Golfe Persique.",
     "is_preset": true,
+    "category": "iran",
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Hormuz Blockade — China Keeps 20%",
+    "name_fr": "Blocage d'Ormuz — Chine garde 20 %",
+    "description": "Total Hormuz blockade, but China negotiates a side deal with Iran: 20% of Chinese-bound flows still transit. Reflects the reality of Sino-Iranian oil diplomacy — China is Iran's #1 customer and could secure a corridor via IRGC-controlled waters.",
+    "description_fr": "Blocage total d'Ormuz, mais la Chine négocie un accord bilatéral avec l'Iran : 20 % des flux vers la Chine continuent de transiter. Reflète la réalité de la diplomatie pétrolière sino-iranienne — la Chine est le 1er client de l'Iran et pourrait sécuriser un corridor via les eaux contrôlées par les Gardiens de la révolution.",
+    "is_preset": true,
+    "category": "iran",
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {"exempt_importers": {"CHN": 0.2}}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Hormuz Blockade — China & India Keep 10%",
+    "name_fr": "Blocage d'Ormuz — Chine et Inde gardent 10 %",
+    "description": "Total Hormuz blockade, but China and India — the two largest Asian buyers of Gulf oil — maintain 10% throughput via bilateral deals. Simulates a scenario where the two rising powers refuse total alignment with Western sanctions and negotiate minimal corridors with Tehran.",
+    "description_fr": "Blocage total d'Ormuz, mais la Chine et l'Inde — les deux plus gros acheteurs asiatiques de pétrole du Golfe — maintiennent 10 % du flux via des accords bilatéraux. Simule un scénario où les deux puissances montantes refusent l'alignement total sur les sanctions occidentales et négocient des corridors minimaux avec Téhéran.",
+    "is_preset": true,
+    "category": "iran",
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {"exempt_importers": {"CHN": 0.1, "IND": 0.1}}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Iran Sanctions + Hormuz Tensions",
+    "name_fr": "Sanctions iraniennes + tensions à Ormuz",
+    "description": "Iran oil embargo with retaliatory partial Hormuz disruption (40%) — a realistic escalation scenario in US-Iran tensions. Iran uses its geographic leverage as pressure.",
+    "description_fr": "Embargo pétrolier iranien avec perturbation partielle d'Ormuz en représailles (40 %) — scénario d'escalade réaliste des tensions USA-Iran. L'Iran utilise son levier géographique.",
+    "is_preset": true,
+    "category": "iran",
+    "actions": [
+      {"action_type": "embargo_targeted", "target_id": "IRN", "severity": 1.0, "params": {"target_regions": ["asia_pacific", "south_asia", "europe"]}, "order_index": 0},
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.4, "params": {}, "order_index": 1}
     ]
   },
   {
@@ -15,8 +50,22 @@
     "description": "Partial disruption of the Strait of Hormuz at 50% severity — representing mine threats, military tensions, or insurance cost escalation reducing traffic.",
     "description_fr": "Perturbation partielle du détroit d'Ormuz à 50 % — menaces de mines, tensions militaires ou hausse des assurances réduisant le trafic.",
     "is_preset": true,
+    "category": "iran",
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.5, "params": {}, "order_index": 0}
+    ]
+  },
+  {
+    "name": "Combined Gulf Crisis",
+    "name_fr": "Crise combinée du Golfe",
+    "description": "Severe multi-shock scenario: Hormuz blocked at 80%, Saudi production drops 30%, and strategic reserves are released globally.",
+    "description_fr": "Scénario multi-chocs sévère : Ormuz bloqué à 80 %, production saoudienne en baisse de 30 %, et libération mondiale des réserves stratégiques.",
+    "is_preset": true,
+    "category": "iran",
+    "actions": [
+      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.8, "params": {}, "order_index": 0},
+      {"action_type": "production_change", "target_id": "SAU", "severity": 0.3, "params": {"delta_pct": -30}, "order_index": 1},
+      {"action_type": "reserve_release", "target_id": "global", "severity": 1.0, "params": {}, "order_index": 2}
     ]
   },
   {
@@ -60,18 +109,6 @@
     ]
   },
   {
-    "name": "Combined Gulf Crisis",
-    "name_fr": "Crise combinée du Golfe",
-    "description": "Severe multi-shock scenario: Hormuz blocked at 80%, Saudi production drops 30%, and strategic reserves are released globally.",
-    "description_fr": "Scénario multi-chocs sévère : Ormuz bloqué à 80 %, production saoudienne en baisse de 30 %, et libération mondiale des réserves stratégiques.",
-    "is_preset": true,
-    "actions": [
-      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.8, "params": {}, "order_index": 0},
-      {"action_type": "production_change", "target_id": "SAU", "severity": 0.3, "params": {"delta_pct": -30}, "order_index": 1},
-      {"action_type": "reserve_release", "target_id": "global", "severity": 1.0, "params": {}, "order_index": 2}
-    ]
-  },
-  {
     "name": "Suez Canal + Bab el-Mandeb Double Block",
     "name_fr": "Double blocage Suez + Bab el-Mandeb",
     "description": "Both Red Sea chokepoints blocked — cutting the Europe-Asia maritime shortcut entirely.",
@@ -112,17 +149,6 @@
     "actions": [
       {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 1.0, "params": {}, "order_index": 0},
       {"action_type": "chokepoint_block", "target_id": "malacca", "severity": 1.0, "params": {}, "order_index": 1}
-    ]
-  },
-  {
-    "name": "Iran Sanctions + Hormuz Tensions",
-    "name_fr": "Sanctions iraniennes + tensions à Ormuz",
-    "description": "Iran oil embargo with retaliatory partial Hormuz disruption (40%) — a realistic escalation scenario in US-Iran tensions.",
-    "description_fr": "Embargo pétrolier iranien avec perturbation partielle d'Ormuz en représailles (40 %) — scénario d'escalade réaliste des tensions USA-Iran.",
-    "is_preset": true,
-    "actions": [
-      {"action_type": "embargo_targeted", "target_id": "IRN", "severity": 1.0, "params": {"target_regions": ["asia_pacific", "south_asia", "europe"]}, "order_index": 0},
-      {"action_type": "chokepoint_block", "target_id": "hormuz", "severity": 0.4, "params": {}, "order_index": 1}
     ]
   },
   {

@@ -183,6 +183,7 @@ class ScenarioOut(BaseModel):
     description: str | None
     description_fr: str | None = None
     is_preset: bool
+    category: str | None = None
     created_at: datetime
     updated_at: datetime
     actions: list[ScenarioActionOut] = []

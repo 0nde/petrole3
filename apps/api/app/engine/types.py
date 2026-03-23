@@ -54,6 +54,8 @@ class ChokepointState:
     name: str
     throughput: float  # Mb/d
     severity: float = 0.0  # 0 = open, 1 = fully blocked
+    exempt_importers: dict[str, float] = field(default_factory=dict)
+    # Maps importer_code → open_fraction (e.g. {"CHN": 0.2} = China keeps 20%)
 
 
 @dataclass

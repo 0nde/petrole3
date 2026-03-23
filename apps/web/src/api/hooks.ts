@@ -50,6 +50,29 @@ export function useRunSimulation() {
   });
 }
 
+export function useCountryBaselines(code: string | null) {
+  return useQuery({
+    queryKey: ["baselines", code],
+    queryFn: () => api.fetchCountryBaselines(code!),
+    enabled: !!code,
+  });
+}
+
+export function useCountryTrade(code: string | null) {
+  return useQuery({
+    queryKey: ["trade-detailed", code],
+    queryFn: () => api.fetchCountryTrade(code!),
+    enabled: !!code,
+  });
+}
+
+export function useVerificationSummary() {
+  return useQuery({
+    queryKey: ["verification-summary"],
+    queryFn: api.fetchVerificationSummary,
+  });
+}
+
 export function useRunCombinedSimulation() {
   const store = useAppStore();
 
