@@ -24,6 +24,13 @@ class CountryState:
     reserve_mobilized: float = 0.0  # Mb/d actually released
     longitude: float = 0.0
     latitude: float = 0.0
+    # Computed by rules G/H — explicit fields instead of dynamic attrs
+    exports_after: float = 0.0
+    imports_after: float = 0.0
+    domestic_available: float = 0.0
+    coverage: float = 1.0
+    stress_score: float = 0.0
+    stress_status: str = "stable"
 
 
 @dataclass
@@ -130,6 +137,9 @@ class SimulationState:
     actions: list[ScenarioActionData] = field(default_factory=list)
     journal: list[SimulationStep] = field(default_factory=list)
     step_counter: int = 0
+    # Computed by rule I — explicit fields instead of dynamic attrs
+    global_supply_loss_pct: float = 0.0
+    estimated_price_impact_pct: float = 0.0
 
     def add_step(self, rule_id: str, description: str,
                  affected_entities: dict[str, list[str]] | None = None,

@@ -38,10 +38,10 @@ def apply_rule_g(state: SimulationState) -> None:
             coverage = float("inf")
 
         # Store on country state for downstream rules
-        country._coverage = coverage  # type: ignore[attr-defined]
-        country._domestic_available = domestic_available  # type: ignore[attr-defined]
-        country._exports_after = exports_after  # type: ignore[attr-defined]
-        country._imports_after = imports_after  # type: ignore[attr-defined]
+        country.coverage = coverage
+        country.domestic_available = domestic_available
+        country.exports_after = exports_after
+        country.imports_after = imports_after
 
         if coverage < 0.95:
             results.append({

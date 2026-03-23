@@ -60,12 +60,11 @@ def apply_rule_h(state: SimulationState) -> None:
     critical_countries: list[str] = []
 
     for country in state.countries.values():
-        coverage = getattr(country, "_coverage", 1.0)
-        score = _coverage_to_stress(coverage)
+        score = _coverage_to_stress(country.coverage)
         status = _score_to_status(score)
 
-        country._stress_score = score  # type: ignore[attr-defined]
-        country._stress_status = status  # type: ignore[attr-defined]
+        country.stress_score = score
+        country.stress_status = status
 
         status_counts[status] += 1
         if status == "emergency":

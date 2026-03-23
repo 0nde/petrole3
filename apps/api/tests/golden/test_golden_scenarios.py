@@ -97,9 +97,13 @@ class TestGoldenRussiaEmbargo:
 
         assert deu is not None
         assert pol is not None
-        # Germany and Poland depend on Russian oil via Druzhba
+        # Germany depends on Russian oil via Druzhba — imports must drop
         assert deu.imports_after < deu.imports_before
-        assert pol.imports_after < pol.imports_before
+        # Poland has no direct import flows in seed data (imports_before=0)
+        # but should still be severely affected structurally
+        assert pol.stress_status in ("critical", "emergency"), (
+            f"Poland should be critical/emergency under Russian embargo, got {pol.stress_status}"
+        )
 
     def test_china_india_unaffected(self, seed_world):
         actions = [{
@@ -129,7 +133,11 @@ class TestGoldenSaudiProductionDrop:
 
         sau = next((c for c in result.country_impacts if c.country_code == "SAU"), None)
         assert sau is not None
-        assert abs(sau.production_after - 6.3) < 0.1, f"Expected ~6.3, got {sau.production_after}"
+        # -40% → 60% of baseline should remain (robust against seed data changes)
+        expected = sau.production_before * 0.6
+        assert abs(sau.production_after - expected) < 0.1, (
+            f"Expected ~{expected:.2f} (60% of {sau.production_before}), got {sau.production_after}"
+        )
 
     def test_global_supply_loss(self, seed_world):
         actions = [{"action_type": "production_change", "target_id": "SAU", "severity": 0.4,
@@ -156,6 +164,12 @@ class TestGoldenNoShock:
         """Without shocks, flows should mostly remain at baseline (except domestic priority)."""
         result = engine.run(**seed_world, actions=[])
 
-        severe_losses = [f for f in result.flow_impacts if f.loss_pct > 50]
-        # Allow some domestic priority adjustments but no massive losses
-        assert len(severe_losses) < 5, f"Too many severe losses in baseline: {len(severe_losses)}"
+        severe_losses = [
+            f for f in result.flow_impacts
+            if f.loss_pct > 50
+            and not any("Domestic priority" in r for r in f.loss_reasons)
+        ]
+        # Domestic priority caps are expected; only flag non-priority losses
+        assert len(severe_losses) == 0, (
+            f"Unexpected severe losses in baseline (excl. domestic priority): {severe_losses}"
+        )
