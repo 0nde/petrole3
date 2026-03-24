@@ -167,6 +167,21 @@ export function MapView() {
 
         const firstSymbolLayer = map.getStyle().layers?.find((l) => l.type === "symbol");
 
+        // Add blue ocean background layer
+        // This colors all water bodies (oceans, seas, lakes) in blue
+        const waterLayers = map.getStyle().layers?.filter((l) => 
+          l.id.includes("water") || l.id.includes("ocean") || l.id.includes("sea")
+        );
+        
+        waterLayers?.forEach((layer) => {
+          if (layer.type === "fill") {
+            map.setPaintProperty(layer.id, "fill-color", "#1e3a8a"); // Deep blue
+            map.setPaintProperty(layer.id, "fill-opacity", 0.6);
+          } else if (layer.type === "line") {
+            map.setPaintProperty(layer.id, "line-color", "#1e40af");
+          }
+        });
+
         map.addLayer(
           {
             id: "country-fill",
