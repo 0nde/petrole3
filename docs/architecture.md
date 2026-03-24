@@ -7,30 +7,34 @@ PetroSim is a monorepo application with two main apps and shared contracts.
 ```
 petrole3/
 ├── apps/
-│   ├── web/           # React 19 + Vite + TypeScript frontend
-│   └── api/           # FastAPI + Python 3.12 backend
-├── packages/
-│   └── contracts/     # Shared TypeScript types (generated from OpenAPI)
+│   ├── web/           # React 19 + Vite 8 + TypeScript 6 frontend
+│   └── api/           # FastAPI 0.135 + Python 3.12 backend
 ├── docs/              # All documentation
-├── infra/             # Docker Compose, DB init scripts
+├── infra/             # SAM templates (prod + dev), Docker Compose
 ├── data/              # Data pipeline: raw → normalized → curated → seed
 │   ├── raw/
 │   ├── normalized/
 │   ├── curated/
 │   └── seed/
-├── scripts/           # Utility scripts
-└── docker-compose.yml
+├── .github/workflows/ # CI/CD pipelines with pedagogical comments
+└── docker-compose.yml # Local PostgreSQL 16
 ```
 
 ## Components
 
 ### Frontend (`apps/web`)
 
-- **Framework**: React 19 + TypeScript strict + Vite
-- **State**: Zustand for global state, TanStack Query for server state
-- **Map**: MapLibre GL JS + deck.gl for flow visualization
+- **Framework**: React 19 + TypeScript 6.0 (strict) + Vite 8
+- **Styling**: TailwindCSS 3.4.19 (locked to v3, v4 has breaking changes)
+- **State**: Zustand 5 for global state, TanStack Query 5 for server state
+- **Map**: MapLibre GL 5.21.0 (choropleth + blue ocean styling)
 - **Preview Engine**: Web Worker running a TypeScript port of the simulation core
-- **Testing**: Vitest (unit) + Playwright (E2E)
+- **Testing**: Vitest 4 (unit) + Playwright 1.49 (E2E)
+
+**Recent updates (March 2026)**:
+- MapLibre GL 5.21.0 fixed choropleth rendering bugs
+- Added dynamic blue ocean styling (#1e3a8a) for better land-water contrast
+- TypeScript 6.0 with `ignoreDeprecations: "6.0"` for baseUrl
 
 Key modules:
 - `src/features/map/` — Interactive globe with flow arcs, chokepoint markers
@@ -42,10 +46,13 @@ Key modules:
 
 ### Backend (`apps/api`)
 
-- **Framework**: FastAPI with Pydantic v2 models
-- **Database**: PostgreSQL 16 + PostGIS via SQLAlchemy 2.x + Alembic
-- **Data processing**: Polars for data transformations
-- **Testing**: Pytest + Hypothesis (property-based)
+- **Framework**: FastAPI 0.135.2 with Pydantic 2.10.4 models
+- **Server**: Uvicorn 0.42.0 (ASGI) + Mangum (Lambda adapter)
+- **Database**: PostgreSQL 16 via SQLAlchemy 2.0.48 (async) + Alembic 1.14.1
+- **Data processing**: Polars 1.39.3 for data transformations
+- **Testing**: Pytest 8.3.4 + Hypothesis 6.151.9 (property-based)
+
+**Hosting**: AWS Lambda (Python 3.12) via SAM/CloudFormation
 
 Key modules:
 - `app/domain/` — Domain entities and value objects
@@ -58,9 +65,15 @@ Key modules:
 
 ### Database
 
-- PostgreSQL 16 with PostGIS extension
+- **Production**: Neon.tech PostgreSQL 16 serverless (eu-west-3)
+  - Endpoint: ep-withered-block-alwtryyg-pooler
+  - Project: dark-king-21176733
+- **Development**: Neon.tech PostgreSQL 16 serverless (eu-central-1)
+  - Endpoint: ep-tiny-thunder-alx82aci-pooler
+- **Local**: Docker Compose PostgreSQL 16
 - Schema managed via Alembic migrations
 - Seed data loaded from `data/seed/`
+- Enriched data: 1,638 verified indicators (94.9% machine-verified)
 
 ## Key Design Decisions
 
@@ -102,6 +115,26 @@ User creates/selects scenario
     Preview panel          Final results
     (immediate)            (detailed + trace)
 ```
+
+## Deployment Architecture
+
+**Production** (petrosim.joyon.org):
+- Frontend: S3 + CloudFront (E39MKQBJY7TQL3)
+- Backend: Lambda + API Gateway (6n66m2gr9c)
+- Database: Neon.tech (ep-withered-block-alwtryyg-pooler)
+- Security: CloudFront Functions (IP whitelist with CIDR)
+- Region: eu-west-3
+
+**Development** (dev-petrosim.joyon.org):
+- Frontend: S3 + CloudFront (EC4H1MGV4R0MT)
+- Backend: Lambda + API Gateway (13ys6hwabg)
+- Database: Neon.tech (ep-tiny-thunder-alx82aci-pooler)
+- Region: eu-west-3 (frontend/backend), eu-central-1 (database)
+
+**CI/CD**:
+- GitHub Actions with OIDC authentication (no long-lived credentials)
+- Matrix testing: Node 20/22 × Python 3.11/3.12
+- Dependabot: Monthly updates (npm, pip, GitHub Actions)
 
 ## Scaling Considerations (Future)
 
