@@ -10,6 +10,11 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    ignore:
+      # TailwindCSS 4.x has breaking changes (new config system with @theme)
+      # Requires complete config migration - ignore major updates for now
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
     groups:
       react:
         patterns:
