@@ -1,52 +1,348 @@
-name: CD — Deploy to AWS
+# ═══════════════════════════════════════════════════════════════════════════════
+# CD WORKFLOW — Continuous Deployment to Production (AWS)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 PEDAGOGICAL OVERVIEW:
+# This workflow implements a production deployment pipeline following AWS and
+# GitHub Actions best practices. It deploys a full-stack application to AWS
+# using Infrastructure as Code (SAM), with zero-downtime deployment strategies.
+#
+# 🎯 KEY CONCEPTS DEMONSTRATED:
+# 1. **OIDC Authentication**: Passwordless AWS access (no long-lived credentials)
+# 2. **CI Gate Pattern**: Ensures all tests pass before deployment
+# 3. **Job Dependencies**: Backend deploys first, then frontend (correct order)
+# 4. **Immutable Infrastructure**: SAM creates new resources, swaps atomically
+# 5. **Cache Invalidation**: Forces CloudFront to serve fresh content
+# 6. **Concurrency Control**: Prevents concurrent deployments (avoids conflicts)
+#
+# 💡 WHY THIS APPROACH:
+# - **OIDC** eliminates secret management (AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY)
+# - **CI Gate** prevents deploying broken code (quality gate)
+# - **Sequential jobs** ensure backend API is ready before frontend deploys
+# - **SAM** provides rollback capabilities and infrastructure versioning
+# - **CloudFront invalidation** ensures users get latest code immediately
+#
+# 🔒 SECURITY HIGHLIGHTS:
+# - OIDC with least-privilege IAM role (no static credentials)
+# - Secrets stored in GitHub Secrets (encrypted at rest)
+# - Pinned action versions (@v6) prevent supply chain attacks
+# - No secrets in logs (GitHub automatically masks secret values)
+#
+# 🏗️ DEPLOYMENT ARCHITECTURE:
+# Backend:  FastAPI → Lambda (via SAM) → API Gateway → Custom Domain
+# Frontend: React → S3 → CloudFront → Custom Domain
+# Database: Neon.tech PostgreSQL (managed, not deployed here)
+#
+# 📊 DEPLOYMENT STRATEGY:
+# - Backend: Blue/Green via Lambda aliases (SAM handles this)
+# - Frontend: Atomic S3 sync + CloudFront invalidation
+# - Zero downtime: Old version serves traffic until new version is ready
+#
+# ⚠️ ROLLBACK STRATEGY:
+# - Backend: SAM stack rollback on failure (automatic)
+# - Frontend: Re-run workflow from previous commit (manual)
+# - Database: Migrations are forward-only (use Alembic downgrade for rollback)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 
+name: CD — Deploy to AWS Production
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TRIGGER CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# - 'push' on main: Auto-deploy when code is merged to main (GitOps pattern)
+# - 'workflow_dispatch': Manual deployment via GitHub UI (emergency deploys)
+#
+# 💡 GITOPS PHILOSOPHY:
+# Main branch is the source of truth for production. Every merge triggers
+# deployment. This ensures production always matches main branch state.
+#
+# 🎯 MANUAL DISPATCH USE CASES:
+# - Emergency hotfix deployment
+# - Re-deploy after infrastructure changes
+# - Deploy without new code (e.g., after secret rotation)
+# ─────────────────────────────────────────────────────────────────────────────
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch:  # 🔧 Enables manual deployment from GitHub UI
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ENVIRONMENT VARIABLES
+# ─────────────────────────────────────────────────────────────────────────────
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AWS_REGION: eu-west-3  # Paris region (closest to users)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONCURRENCY CONTROL
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# Prevents multiple deployments from running simultaneously.
+# Unlike CI (where we cancel old runs), here we QUEUE deployments.
+#
+# 💡 WHY 'cancel-in-progress: false':
+# - Prevents partial deployments (half-deployed state is dangerous)
+# - Ensures deployments complete in order (FIFO queue)
+# - Avoids CloudFormation stack conflicts (SAM uses CFN under the hood)
+#
+# 🎯 EXAMPLE SCENARIO:
+# Deploy A starts → Deploy B triggered → B waits for A to finish → B runs.
+# This is safer than canceling A mid-deployment.
+#
+# ⚠️ TRADE-OFF:
+# Slower feedback (must wait for queue), but safer deployments.
+# For high-frequency deploys, consider deployment windows or feature flags.
+# ─────────────────────────────────────────────────────────────────────────────
 concurrency:
-  group: deploy
-  cancel-in-progress: false
+  group: deploy-production  # Single queue for all prod deployments
+  cancel-in-progress: false  # Queue deployments, don't cancel
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PERMISSIONS (OIDC)
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# Minimal permissions required for OIDC authentication with AWS.
+# GitHub generates a short-lived JWT token that AWS exchanges for credentials.
+#
+# 💡 WHY OIDC OVER ACCESS KEYS:
+# - No long-lived credentials to rotate or leak
+# - Automatic expiration (tokens valid for 1 hour max)
+# - Auditable (CloudTrail logs show which workflow assumed role)
+# - Least privilege (IAM role defines exact permissions)
+#
+# 🔒 SECURITY MODEL:
+# 1. GitHub generates JWT with workflow identity
+# 2. AWS STS validates JWT against OIDC provider
+# 3. AWS returns temporary credentials (valid ~1 hour)
+# 4. Workflow uses temp credentials for AWS API calls
+#
+# 🎯 IAM ROLE TRUST POLICY:
+# The AWS role (petrosim-github-actions) trusts:
+# - GitHub OIDC provider (token.actions.githubusercontent.com)
+# - This specific repo (0nde/petrole3)
+# - Only from main branch or workflow_dispatch
+# ─────────────────────────────────────────────────────────────────────────────
 permissions:
-  id-token: write
-  contents: read
+  id-token: write  # Required to request OIDC JWT token
+  contents: read   # Required to checkout code
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOBS DEFINITION
+# ═══════════════════════════════════════════════════════════════════════════════
 
 jobs:
-  # Wait for CI to pass before deploying
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1: CI GATE (QUALITY GATE)
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 PURPOSE:
+  # Runs full CI suite before allowing deployment.
+  # This is the "quality gate" that prevents broken code from reaching production.
+  #
+  # 💡 WHY REUSABLE WORKFLOWS:
+  # - DRY principle: CI logic defined once, used by CD workflows
+  # - Consistency: Same checks run on PRs and before deployment
+  # - Maintainability: Update CI once, all workflows benefit
+  #
+  # 🎯 WHAT GETS CHECKED:
+  # - Frontend: TypeScript typecheck, ESLint, Vitest tests
+  # - Backend: Ruff linting, pytest tests
+  # - All checks must pass (green) before deployment proceeds
+  #
+  # ⚠️ FAILURE BEHAVIOR:
+  # If CI fails, deployment stops immediately (fail-fast).
+  # No partial deployment, no broken production.
+  # ───────────────────────────────────────────────────────────────────────────
   ci:
-    name: CI Gate
-    uses: ./.github/workflows/ci.yml
+    name: 🚦 CI Quality Gate
+    uses: ./.github/workflows/ci.yml  # Reusable workflow call
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 2: DEPLOY BACKEND (AWS LAMBDA + API GATEWAY)
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 PURPOSE:
+  # Deploys FastAPI backend to AWS Lambda using SAM (Serverless Application Model).
+  # Creates/updates Lambda function, API Gateway, custom domain, and all infrastructure.
+  #
+  # 💡 WHY SAM:
+  # - Infrastructure as Code (version controlled, repeatable)
+  # - Automatic rollback on deployment failure
+  # - Built-in best practices (least privilege IAM, CloudWatch logs)
+  # - Simpler than raw CloudFormation (serverless-specific abstractions)
+  #
+  # 🏗️ WHAT SAM DEPLOYS:
+  # - Lambda function (FastAPI app in Docker container)
+  # - API Gateway (HTTP API with custom domain)
+  # - IAM roles (Lambda execution role with minimal permissions)
+  # - CloudWatch log groups (application logs)
+  # - Custom domain mapping (api.petrosim.joyon.org)
+  #
+  # 🎯 DEPLOYMENT STRATEGY:
+  # SAM uses CloudFormation changesets:
+  # 1. Calculates diff between current and desired state
+  # 2. Creates new resources (e.g., new Lambda version)
+  # 3. Swaps traffic atomically (API Gateway points to new Lambda)
+  # 4. Keeps old version for rollback (can revert via CloudFormation)
+  #
+  # ⚠️ DEPENDENCIES:
+  # Must run AFTER ci job (needs: ci).
+  # Must run BEFORE deploy-frontend (frontend needs backend API URL).
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-backend:
-    name: Deploy Backend (Lambda)
-    needs: ci
+    name: 🚀 Deploy Backend (Lambda + API Gateway)
+    needs: ci  # Wait for CI to pass
     runs-on: ubuntu-latest
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # DEPLOYMENT TIMEOUT
+    # ─────────────────────────────────────────────────────────────────────────
+    # 📖 EXPLANATION:
+    # Sets maximum time for this job (30 minutes).
+    # SAM deployments can be slow (Docker build, CloudFormation stack update).
+    #
+    # 💡 WHY 30 MINUTES:
+    # - Docker build: ~5-10 min (first time, cached after)
+    # - CloudFormation update: ~5-15 min (creates/updates resources)
+    # - Buffer for retries and AWS API throttling
+    #
+    # ⚠️ TIMEOUT BEHAVIOR:
+    # If job exceeds 30 min, GitHub cancels it (deployment fails).
+    # CloudFormation will auto-rollback (safe failure mode).
+    # ─────────────────────────────────────────────────────────────────────────
+    timeout-minutes: 30
+    
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: aws-actions/configure-aws-credentials@v6
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 1: CHECKOUT CODE
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 2: CONFIGURE AWS CREDENTIALS (OIDC)
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Authenticates with AWS using OIDC (no access keys needed).
+      # Assumes IAM role and gets temporary credentials (valid ~1 hour).
+      #
+      # 💡 HOW IT WORKS:
+      # 1. Action requests JWT from GitHub OIDC provider
+      # 2. Calls AWS STS AssumeRoleWithWebIdentity
+      # 3. AWS validates JWT and returns temp credentials
+      # 4. Credentials are set as environment variables (AWS_ACCESS_KEY_ID, etc.)
+      #
+      # 🔒 SECURITY:
+      # - Credentials auto-expire after 1 hour
+      # - Role has least-privilege permissions (only what SAM needs)
+      # - CloudTrail logs all actions (audit trail)
+      #
+      # 🎯 IAM ROLE PERMISSIONS:
+      # The role (petrosim-github-actions) can:
+      # - Create/update CloudFormation stacks
+      # - Manage Lambda functions and API Gateway
+      # - Upload to S3 (for SAM artifacts)
+      # - Invalidate CloudFront distributions
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🔐 Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-3
-
-      - uses: aws-actions/setup-sam@v2
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # IAM role ARN
+          aws-region: ${{ env.AWS_REGION }}
+          # Optional: Add role session name for better CloudTrail logs
+          role-session-name: GitHubActions-CD-Backend-${{ github.run_id }}
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 3: SETUP SAM CLI
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Installs AWS SAM CLI (Serverless Application Model command-line tool).
+      # SAM is AWS's framework for building serverless applications.
+      #
+      # 💡 WHY SAM:
+      # - Simplified CloudFormation syntax for serverless apps
+      # - Local testing (sam local start-api)
+      # - Built-in deployment best practices
+      # - Integrates with AWS CodeDeploy for gradual deployments
+      #
+      # 🎯 SAM CLI COMMANDS:
+      # - 'sam build': Packages app and dependencies
+      # - 'sam deploy': Deploys to AWS via CloudFormation
+      # - 'sam logs': Streams CloudWatch logs
+      # - 'sam local': Runs Lambda locally for testing
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🛠️ Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
         with:
-          use-installer: true
-
-      - name: SAM Build
-        run: sam build --template-file infra/aws/template.yaml
-
-      - name: SAM Deploy
+          use-installer: true  # Use official SAM installer (faster)
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 4: SAM BUILD
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Builds the Lambda deployment package.
+      # For Docker-based Lambdas, this builds the container image.
+      #
+      # 💡 WHAT SAM BUILD DOES:
+      # 1. Reads template.yaml (SAM template)
+      # 2. Builds Docker image (if using containers)
+      # 3. Installs Python dependencies (if using zip packages)
+      # 4. Creates .aws-sam/build/ directory with deployment artifacts
+      #
+      # 🎯 BUILD OPTIMIZATION:
+      # - Uses Docker layer caching (speeds up subsequent builds)
+      # - Only rebuilds changed layers (incremental builds)
+      # - Parallel builds for multiple functions (if applicable)
+      #
+      # ⚠️ BUILD FAILURES:
+      # Common causes:
+      # - Docker daemon not running (GitHub runners have Docker pre-installed)
+      # - Invalid template.yaml syntax
+      # - Missing dependencies in requirements.txt
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🏗️ Build SAM application
+        run: sam build --template-file infra/aws/template.yaml --use-container
+        # --use-container: Builds in Docker (consistent with AWS Lambda runtime)
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 5: SAM DEPLOY
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Deploys the built application to AWS.
+      # Creates/updates CloudFormation stack with all infrastructure.
+      #
+      # 💡 DEPLOYMENT PROCESS:
+      # 1. Uploads artifacts to S3 (SAM creates bucket automatically)
+      # 2. Creates CloudFormation changeset (diff of changes)
+      # 3. Executes changeset (applies changes)
+      # 4. Waits for stack to reach stable state (CREATE_COMPLETE/UPDATE_COMPLETE)
+      #
+      # 🎯 SAM DEPLOY FLAGS EXPLAINED:
+      # - --stack-name: CloudFormation stack name (petrosim)
+      # - --capabilities CAPABILITY_IAM: Allows SAM to create IAM roles
+      # - --resolve-image-repos: Auto-creates ECR repo for Docker images
+      # - --resolve-s3: Auto-creates S3 bucket for artifacts
+      # - --no-confirm-changeset: Auto-approve changes (CI/CD mode)
+      # - --no-fail-on-empty-changeset: Don't fail if no changes (idempotent)
+      # - --parameter-overrides: Pass runtime config (DB URLs, domain, etc.)
+      #
+      # 🔒 SECRETS HANDLING:
+      # Secrets are passed as CloudFormation parameters.
+      # They're encrypted in transit and at rest (AWS Systems Manager Parameter Store).
+      # Lambda environment variables are encrypted with KMS.
+      #
+      # ⚠️ ROLLBACK BEHAVIOR:
+      # If deployment fails, CloudFormation automatically rolls back:
+      # - Deletes newly created resources
+      # - Restores previous resource versions
+      # - Leaves stack in last known good state
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🚢 Deploy to AWS (CloudFormation)
         run: |
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
             --stack-name petrosim \
-            --region eu-west-3 \
+            --region ${{ env.AWS_REGION }} \
             --capabilities CAPABILITY_IAM \
             --resolve-image-repos \
             --resolve-s3 \
@@ -57,47 +353,317 @@ jobs:
               "SyncDatabaseUrl=${{ secrets.SYNC_DATABASE_URL }}" \
               "DomainName=${{ secrets.DOMAIN }}" \
               "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}" \
-              "CertificateArn=${{ secrets.CERTIFICATE_ARN }}"
+              "CertificateArn=${{ secrets.CERTIFICATE_ARN }}" \
+            --tags \
+              Environment=production \
+              ManagedBy=GitHubActions \
+              Repository=0nde/petrole3
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 6: DEPLOYMENT VERIFICATION (SMOKE TEST)
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Verifies the deployed API is responding correctly.
+      # Simple health check to catch deployment issues early.
+      #
+      # 💡 WHY SMOKE TESTS:
+      # - Catches misconfigurations (wrong env vars, broken connections)
+      # - Validates API Gateway routing (correct Lambda integration)
+      # - Confirms Lambda cold start works (first invocation succeeds)
+      #
+      # 🎯 WHAT TO TEST:
+      # - Health endpoint returns 200 OK
+      # - Database connection works (if health check queries DB)
+      # - Response time is reasonable (<5 seconds for cold start)
+      #
+      # ⚠️ FAILURE BEHAVIOR:
+      # If smoke test fails, workflow fails (but deployment already succeeded).
+      # You'll need to investigate and potentially rollback manually.
+      # Consider adding automatic rollback on smoke test failure.
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🏥 Smoke test (health check)
+        run: |
+          echo "Waiting 10s for Lambda to be ready..."
+          sleep 10
+          
+          # Test health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.DOMAIN }}/health || echo "000")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Health check passed (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Health check failed (HTTP $HTTP_CODE)"
+            echo "⚠️  Backend may be unhealthy, but deployment succeeded."
+            echo "    Investigate logs: sam logs --stack-name petrosim --tail"
+            exit 1
+          fi
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3: DEPLOY FRONTEND (S3 + CLOUDFRONT)
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 PURPOSE:
+  # Deploys React frontend to S3 and invalidates CloudFront cache.
+  # Ensures users get the latest version immediately after deployment.
+  #
+  # 💡 WHY S3 + CLOUDFRONT:
+  # - S3: Static file hosting (cheap, scalable, durable)
+  # - CloudFront: Global CDN (low latency, HTTPS, custom domain)
+  # - Separation of concerns: Storage (S3) vs. Delivery (CloudFront)
+  #
+  # 🏗️ DEPLOYMENT ARCHITECTURE:
+  # Build → S3 Upload → CloudFront Invalidation → Users get new version
+  #
+  # 🎯 CACHE STRATEGY:
+  # - JS/CSS/images: 1 year cache (immutable, content-hashed filenames)
+  # - index.html: 60s cache (entry point, must be fresh)
+  # - Invalidation: Forces CloudFront to fetch fresh index.html from S3
+  #
+  # ⚠️ DEPENDENCIES:
+  # Must run AFTER deploy-backend (needs: deploy-backend).
+  # Frontend calls backend API, so backend must be deployed first.
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-frontend:
-    name: Deploy Frontend (S3 + CloudFront)
+    name: 🎨 Deploy Frontend (S3 + CloudFront)
     runs-on: ubuntu-latest
-    needs: deploy-backend
+    needs: deploy-backend  # Wait for backend to be ready
+    timeout-minutes: 15
+    
     defaults:
       run:
         working-directory: apps/web
+    
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v5
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 1: CHECKOUT CODE
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 2-4: SETUP NODE + PNPM + INSTALL DEPS
+      # ───────────────────────────────────────────────────────────────────────
+      # Same as CI workflow, with caching for speed
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v5
         with:
           version: 9
-      - uses: actions/setup-node@v6
+      
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: pnpm install
-        working-directory: apps/web
-
-      - name: Build
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 5: BUILD PRODUCTION BUNDLE
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Builds optimized production bundle with Vite.
+      # Output goes to dist/ directory.
+      #
+      # 💡 VITE BUILD OPTIMIZATIONS:
+      # - Code splitting (separate chunks for routes/components)
+      # - Tree shaking (removes unused code)
+      # - Minification (smaller file sizes)
+      # - Content hashing (cache busting via filename)
+      #
+      # 🎯 BUILD OUTPUT:
+      # - index.html: Entry point (not hashed, always same name)
+      # - assets/*.js: JavaScript bundles (content-hashed)
+      # - assets/*.css: Stylesheets (content-hashed)
+      # - assets/*.{png,svg,etc}: Images (content-hashed)
+      #
+      # ⚠️ BUILD FAILURES:
+      # Common causes:
+      # - TypeScript errors (should be caught by CI)
+      # - Missing environment variables (check .env.production)
+      # - Out of memory (increase Node heap: NODE_OPTIONS=--max-old-space-size=4096)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🏗️ Build production bundle
         run: pnpm build
-
-      - uses: aws-actions/configure-aws-credentials@v6
+        env:
+          # Vite build-time environment variables
+          # These are embedded in the bundle at build time (not runtime)
+          NODE_ENV: production
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 6: CONFIGURE AWS CREDENTIALS
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🔐 Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-3
-
-      - name: Upload to S3
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-CD-Frontend-${{ github.run_id }}
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 7: UPLOAD TO S3 (ATOMIC DEPLOYMENT)
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Syncs build artifacts to S3 bucket.
+      # Uses different cache headers for different file types.
+      #
+      # 💡 CACHE STRATEGY EXPLAINED:
+      # - Hashed assets (JS/CSS): 1 year cache (immutable)
+      #   - Filename changes when content changes (e.g., main.abc123.js)
+      #   - Old files are never requested (new HTML references new filenames)
+      #   - Safe to cache forever ("immutable" directive)
+      #
+      # - index.html: 60s cache (entry point)
+      #   - Always same filename (index.html)
+      #   - Must be fresh to reference latest hashed assets
+      #   - Short cache prevents stale entry point
+      #
+      # 🎯 S3 SYNC FLAGS:
+      # - --delete: Removes old files from S3 (cleanup)
+      # - --exclude: Skips index.html in first sync (handled separately)
+      # - --cache-control: Sets HTTP Cache-Control header
+      # - --content-type: Sets MIME type (important for HTML)
+      #
+      # ⚠️ ATOMIC DEPLOYMENT:
+      # This is NOT fully atomic (brief window where old HTML + new JS).
+      # For true atomic deploys, use:
+      # 1. Blue/Green: Deploy to new S3 bucket, swap CloudFront origin
+      # 2. Versioned paths: /v1/, /v2/, etc.
+      # 3. Feature flags: Deploy new code, enable via runtime flag
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📤 Upload to S3
         run: |
+          echo "Uploading hashed assets (1 year cache)..."
           aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }}/ \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html" --exclude "*.json"
+            --exclude "index.html" \
+            --exclude "*.json"
+          
+          echo "Uploading index.html (60s cache)..."
           aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET }}/index.html \
-            --cache-control "public, max-age=60" \
-            --content-type "text/html"
-
-      - name: Invalidate CloudFront
+            --cache-control "public, max-age=60, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+          
+          echo "Uploading JSON files (5 min cache)..."
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }}/ \
+            --exclude "*" \
+            --include "*.json" \
+            --cache-control "public, max-age=300" \
+            --content-type "application/json"
+          
+          echo "✅ S3 upload complete"
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 8: INVALIDATE CLOUDFRONT CACHE
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Forces CloudFront to fetch fresh files from S3.
+      # Without this, users would see cached (old) version for hours/days.
+      #
+      # 💡 WHY INVALIDATION IS NEEDED:
+      # CloudFront caches files at edge locations worldwide.
+      # Even with short cache headers, CloudFront respects its own cache TTL.
+      # Invalidation bypasses cache and forces fresh fetch from origin (S3).
+      #
+      # 🎯 INVALIDATION PATHS:
+      # - "/*": Invalidates ALL files (simple but costs more)
+      # - Alternative: Invalidate only /index.html and /*.json
+      #   (hashed assets don't need invalidation, they're new files)
+      #
+      # 💰 COST CONSIDERATIONS:
+      # - First 1,000 invalidations/month: FREE
+      # - Additional invalidations: $0.005 per path
+      # - Wildcard (/*) counts as 1 path (not per file)
+      #
+      # ⏱️ PROPAGATION TIME:
+      # - Invalidation completes in ~30-60 seconds
+      # - Users may see old version briefly during propagation
+      # - Check status: aws cloudfront get-invalidation
+      #
+      # ⚠️ ALTERNATIVE STRATEGIES:
+      # - Cache-busting query strings: ?v=123 (simpler, no invalidation cost)
+      # - Versioned paths: /v1/, /v2/ (more complex, zero downtime)
+      # - Lambda@Edge: Rewrite requests to versioned paths (advanced)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🔄 Invalidate CloudFront cache
         run: |
-          aws cloudfront create-invalidation \
+          echo "Creating CloudFront invalidation..."
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          
+          echo "Invalidation created: $INVALIDATION_ID"
+          echo "Status: https://console.aws.amazon.com/cloudfront/v3/home#/distributions/${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}/invalidations/$INVALIDATION_ID"
+          
+          # Optional: Wait for invalidation to complete (can take 30-60s)
+          # Uncomment if you want to verify invalidation before marking job as complete
+          # echo "Waiting for invalidation to complete..."
+          # aws cloudfront wait invalidation-completed \
+          #   --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+          #   --id "$INVALIDATION_ID"
+          # echo "✅ Invalidation complete"
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 9: DEPLOYMENT VERIFICATION (SMOKE TEST)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🏥 Smoke test (frontend health check)
+        run: |
+          echo "Waiting 30s for CloudFront invalidation to propagate..."
+          sleep 30
+          
+          # Test that site is accessible and returns HTML
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.DOMAIN }} || echo "000")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Frontend health check passed (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Frontend health check failed (HTTP $HTTP_CODE)"
+            echo "⚠️  Site may be unreachable. Check CloudFront distribution."
+            exit 1
+          fi
+  
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 4: DEPLOYMENT SUCCESS NOTIFICATION
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 PURPOSE:
+  # Sends deployment success notification and summary.
+  # Useful for team awareness and audit trail.
+  #
+  # 💡 NOTIFICATION CHANNELS:
+  # - GitHub deployment status (visible in repo)
+  # - Could add: Slack, Discord, email, PagerDuty
+  # - Could add: Deployment metrics to DataDog/New Relic
+  #
+  # 🎯 WHAT TO INCLUDE:
+  # - Deployment timestamp
+  # - Deployed commit SHA
+  # - Deployer (GitHub user)
+  # - Links to deployed URLs
+  # - Deployment duration
+  # ───────────────────────────────────────────────────────────────────────────
+  deployment-success:
+    name: ✅ Deployment Success
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    if: success()  # Only run if all deployments succeeded
+    steps:
+      - name: 📢 Deployment summary
+        run: |
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "📦 Commit:    ${{ github.sha }}"
+          echo "👤 Deployer:  ${{ github.actor }}"
+          echo "🕐 Time:      $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🔗 Workflow:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+          echo "🌐 Deployed URLs:"
+          echo "   Frontend: https://${{ secrets.DOMAIN }}"
+          echo "   Backend:  https://${{ secrets.DOMAIN }}/api/v1/docs"
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
