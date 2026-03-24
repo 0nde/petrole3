@@ -1,5 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# UPDATE IP WHITELIST WORKFLOW
+# ═══════════════════════════════════════════════════════════════════════════
+# 📖 PURPOSE:
+# Manually update CloudFront IP whitelist to restrict access to PetroSim.
+# This workflow generates and deploys a CloudFront Function that blocks
+# requests from IPs not in the ALLOWED_IPS secret.
+#
+# 🎯 USE CASES:
+# - Add/remove authorized IPs (home, office, VPN)
+# - Emergency lockdown (restrict to single IP)
+# - Temporary access for contractors/partners
+# - Geographic restriction simulation
+#
+# 🔒 SECURITY MODEL:
+# CloudFront Functions run at edge locations (before cache lookup).
+# They inspect every request and return 403 Forbidden if IP not allowed.
+# This is more efficient than WAF rules and costs less.
+#
+# 💡 CIDR NOTATION SUPPORT:
+# - Single IP: 203.0.113.42/32 or 203.0.113.42
+# - Subnet: 203.0.113.0/24 (allows 203.0.113.0-255)
+# - Multiple: Comma-separated in ALLOWED_IPS secret
+#
+# ⚠️ IMPORTANT NOTES:
+# - Changes take ~1 minute to propagate globally
+# - GitHub Actions IPs are NOT whitelisted (smoke tests will get 403)
+# - Empty ALLOWED_IPS = block everyone (use with caution!)
+# - CloudFront Functions have 10KB code limit
+#
+# 📚 REFERENCES:
+# - CloudFront Functions: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html
+# - CIDR notation: https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing
+# ═══════════════════════════════════════════════════════════════════════════
+
 name: Update IP Whitelist
 
+# ───────────────────────────────────────────────────────────────────────────
+# TRIGGER: Manual workflow dispatch only
+# ───────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# This workflow is NEVER triggered automatically. It must be run manually
+# from GitHub Actions UI or via API/CLI.
+#
+# 💡 WHY MANUAL ONLY:
+# - IP changes are sensitive security operations
+# - Requires human decision (which IPs to allow)
+# - Prevents accidental lockouts from automation
+# - Allows adding reason/audit trail
+#
+# 🎯 INPUTS:
+# - environment: dev or prod (determines which CloudFront Function to update)
+# - reason: Optional audit trail (logged in workflow run)
+# ───────────────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
     inputs:
@@ -18,13 +70,31 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# ───────────────────────────────────────────────────────────────────────────
+# PERMISSIONS: OIDC for AWS authentication
+# ───────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# Uses OpenID Connect (OIDC) to authenticate with AWS without storing
+# long-lived credentials. GitHub generates a short-lived token that AWS
+# validates and exchanges for temporary credentials.
+#
+# 💡 PERMISSIONS NEEDED:
+# - id-token: write → Generate OIDC token for AWS
+# - contents: read → Checkout repository (not strictly needed here)
+#
+# 🔒 SECURITY BENEFITS:
+# - No AWS access keys in secrets
+# - Credentials expire after workflow completes
+# - AWS IAM role defines exact permissions (least privilege)
+# - Audit trail in AWS CloudTrail
+# ───────────────────────────────────────────────────────────────────────────
 permissions:
   id-token: write
   contents: read
 
 jobs:
   update-ip:
-    name: Update CloudFront IP Restriction
+    name: 🔒 Update CloudFront IP Restriction
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -34,10 +104,47 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: eu-west-3
 
-      - name: Generate CloudFront Function code
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 1: GENERATE CLOUDFRONT FUNCTION CODE
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Generates JavaScript code that runs at CloudFront edge locations.
+      # The function inspects every incoming request and blocks IPs not in
+      # the whitelist.
+      #
+      # 💡 BASH SCRIPT BREAKDOWN:
+      # 1. Parse ALLOWED_IPS secret (comma-separated) into bash array
+      # 2. Build JavaScript array string with proper quoting
+      # 3. Generate CloudFront Function with CIDR matching logic
+      # 4. Replace PLACEHOLDER_IPS with actual IP list
+      #
+      # 🎯 CLOUDFRONT FUNCTION LOGIC:
+      # - Extract client IP from event.viewer.ip
+      # - Loop through allowed CIDRs
+      # - For /32 (single IP): exact string match
+      # - For subnets: bitwise AND comparison
+      # - Return 403 if no match, otherwise pass request through
+      #
+      # 🔢 CIDR MATCHING ALGORITHM:
+      # Example: 203.0.113.0/24 allows 203.0.113.0-255
+      # 1. Convert IP to 32-bit integer (203.0.113.42 → 3405803306)
+      # 2. Create subnet mask (24 → 0xFFFFFF00)
+      # 3. Apply mask to both IPs: (IP & mask) == (clientIP & mask)
+      #
+      # ⚠️ CLOUDFRONT FUNCTIONS CONSTRAINTS:
+      # - Max 10KB code size
+      # - No async/await, no external libraries
+      # - ES5 JavaScript only (no arrow functions, const, let)
+      # - Must return in <1ms (hard limit)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📝 Generate CloudFront Function code
         run: |
-          # Build the JS array from the secret
+          # Parse ALLOWED_IPS secret into bash array
+          # Example: "1.2.3.4/32,10.0.0.0/8" → array of 2 elements
           IFS=',' read -ra IPS <<< "${{ secrets.ALLOWED_IPS }}"
+          
+          # Build JavaScript array string
+          # Result: '1.2.3.4/32','10.0.0.0/8'
           IP_ARRAY=""
           for ip in "${IPS[@]}"; do
             ip=$(echo "$ip" | xargs)  # trim whitespace
@@ -45,24 +152,49 @@ jobs:
             IP_ARRAY="$IP_ARRAY'$ip'"
           done
 
+          # Generate CloudFront Function (ES5 JavaScript)
+          # This code runs at every CloudFront edge location globally
           cat > /tmp/cf-function.js << 'FUNCEOF'
           function handler(event) {
+            // List of allowed IP addresses/subnets in CIDR notation
             var allowedCIDRs = [PLACEHOLDER_IPS];
+            
+            // Extract client IP from CloudFront event
             var clientIP = event.viewer.ip;
             var allowed = false;
+            
+            // Check if client IP matches any allowed CIDR
             for (var i = 0; i < allowedCIDRs.length; i++) {
               var cidr = allowedCIDRs[i];
               var parts = cidr.split('/');
               var ip = parts[0];
               var mask = parseInt(parts[1] || '32');
-              if (mask === 32 && clientIP === ip) { allowed = true; break; }
+              
+              // Fast path: exact IP match (/32 or no mask)
+              if (mask === 32 && clientIP === ip) { 
+                allowed = true; 
+                break; 
+              }
+              
+              // Subnet match: convert IPs to integers and apply mask
               if (mask < 32) {
+                // Convert dotted-decimal to 32-bit integer
+                // Example: 203.0.113.42 → (203<<24)+(0<<16)+(113<<8)+42
                 var ipNum = ip.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
                 var clientNum = clientIP.split('.').reduce(function(a,b){return (a<<8)+parseInt(b);},0)>>>0;
+                
+                // Create subnet mask: /24 → 0xFFFFFF00
                 var m = (~0 << (32 - mask)) >>> 0;
-                if ((ipNum & m) === (clientNum & m)) { allowed = true; break; }
+                
+                // Check if IPs are in same subnet
+                if ((ipNum & m) === (clientNum & m)) { 
+                  allowed = true; 
+                  break; 
+                }
               }
             }
+            
+            // Block request if IP not allowed
             if (!allowed) {
               return {
                 statusCode: 403,
@@ -70,48 +202,103 @@ jobs:
                 body: { encoding: 'text', data: 'Access denied' }
               };
             }
+            
+            // Allow request to proceed
             return event.request;
           }
           FUNCEOF
 
-          # Replace placeholder with actual IPs
+          # Replace placeholder with actual IP list
           sed -i "s|PLACEHOLDER_IPS|$IP_ARRAY|g" /tmp/cf-function.js
-          echo "Generated function with $(echo "$IP_ARRAY" | tr ',' '\n' | wc -l) IP rule(s)"
+          
+          # Log summary
+          IP_COUNT=$(echo "$IP_ARRAY" | tr ',' '\n' | wc -l)
+          echo "✅ Generated CloudFront Function with $IP_COUNT IP rule(s)"
+          echo "Allowed IPs/CIDRs: ${{ secrets.ALLOWED_IPS }}"
 
-      - name: Update CloudFront Function
+      # ───────────────────────────────────────────────────────────────────────
+      # STEP 2: UPDATE AND PUBLISH CLOUDFRONT FUNCTION
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # CloudFront Functions have a two-stage deployment:
+      # 1. UPDATE: Upload new code to DEVELOPMENT stage
+      # 2. PUBLISH: Promote code to LIVE stage (deployed globally)
+      #
+      # 💡 ETAG MECHANISM:
+      # ETags prevent concurrent modification conflicts (optimistic locking).
+      # - Get current ETag before update
+      # - Include ETag in update request (--if-match)
+      # - If ETag changed (someone else updated), request fails
+      # - Get new ETag after update before publishing
+      #
+      # 🎯 DEPLOYMENT STAGES:
+      # - DEVELOPMENT: Code uploaded but not live (for testing)
+      # - LIVE: Code deployed to all CloudFront edge locations globally
+      # - Propagation: ~1 minute for global deployment
+      #
+      # 🔒 FUNCTION NAMING:
+      # - Dev: petrosim-dev-ip-restriction
+      # - Prod: petrosim-ip-restriction
+      # Each environment has its own function with separate IP whitelist
+      #
+      # ⚠️ IMPORTANT:
+      # - Update without publish = no effect (code stays in dev)
+      # - Publish is atomic and instant (no gradual rollout)
+      # - No rollback mechanism (must deploy previous version manually)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🚀 Update and publish CloudFront Function
         run: |
-          # Determine function name based on environment
+          # Determine function name based on environment input
           if [ "${{ github.event.inputs.environment }}" = "dev" ]; then
             FUNCTION_NAME="petrosim-dev-ip-restriction"
           else
             FUNCTION_NAME="petrosim-ip-restriction"
           fi
           
-          echo "Updating function: $FUNCTION_NAME"
+          echo "📝 Updating function: $FUNCTION_NAME"
 
-          # Get current ETag (required for update)
+          # Get current ETag (version identifier for optimistic locking)
+          # ETag changes every time the function is modified
           ETAG=$(aws cloudfront describe-function \
             --name "$FUNCTION_NAME" \
             --query "ETag" --output text)
+          
+          echo "Current ETag: $ETAG"
 
-          # Update the function code
+          # Update the function code (uploads to DEVELOPMENT stage)
+          # --if-match ensures we're updating the version we think we are
           aws cloudfront update-function \
             --name "$FUNCTION_NAME" \
             --function-config '{"Comment":"IP whitelist for PetroSim - updated via GitHub Actions","Runtime":"cloudfront-js-2.0"}' \
             --function-code fileb:///tmp/cf-function.js \
             --if-match "$ETAG"
+          
+          echo "✅ Function code updated (DEVELOPMENT stage)"
 
-          # Publish the updated function
+          # Get NEW ETag after update (required for publish)
+          # ETag changed because we just updated the function
           ETAG=$(aws cloudfront describe-function \
             --name "$FUNCTION_NAME" \
             --query "ETag" --output text)
+          
+          echo "New ETag: $ETAG"
 
+          # Publish the function (promote DEVELOPMENT → LIVE)
+          # This deploys the function to all CloudFront edge locations globally
           aws cloudfront publish-function \
             --name "$FUNCTION_NAME" \
             --if-match "$ETAG"
 
-
-          echo "✅ CloudFront Function updated and published: $FUNCTION_NAME"
+          echo ""
+          echo "═══════════════════════════════════════════════════════════"
+          echo "✅ CloudFront Function deployed successfully!"
+          echo "═══════════════════════════════════════════════════════════"
+          echo "Function: $FUNCTION_NAME"
           echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Allowed IPs: ${{ secrets.ALLOWED_IPS }}"
           echo "Reason: ${{ github.event.inputs.reason || 'No reason provided' }}"
+          echo ""
+          echo "⏱️  Propagation time: ~1 minute to all edge locations"
+          echo "🌍 Deployed to: All CloudFront edge locations globally"
+          echo "🔒 Effect: Requests from non-whitelisted IPs will receive 403"
+          echo "═══════════════════════════════════════════════════════════"
