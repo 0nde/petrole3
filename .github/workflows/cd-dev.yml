@@ -1,51 +1,160 @@
-name: CD Dev — Deploy to Dev Environment
+# ═══════════════════════════════════════════════════════════════════════════════
+# CD DEV WORKFLOW — Continuous Deployment to Development Environment
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 PEDAGOGICAL OVERVIEW:
+# This workflow deploys to the DEV environment (dev-petrosim.joyon.org).
+# It's nearly identical to cd.yml (prod), but with key differences for dev workflows.
+#
+# 🎯 KEY DIFFERENCES FROM PRODUCTION:
+# 1. **Trigger**: Deploys on ALL branches except main (feature branch testing)
+# 2. **Concurrency**: Cancels in-progress deploys (faster iteration)
+# 3. **Environment**: Uses DEV secrets (separate database, S3, CloudFront)
+# 4. **Stack name**: petrosim-dev (separate CloudFormation stack)
+# 5. **Smoke tests**: More lenient (can tolerate some failures)
+#
+# 💡 WHY SEPARATE DEV ENVIRONMENT:
+# - Test changes before merging to main (pre-production validation)
+# - Experiment with infrastructure changes safely
+# - Share work-in-progress with team/stakeholders
+# - Avoid breaking production during development
+#
+# 🏗️ DEV ENVIRONMENT ARCHITECTURE:
+# - Domain: dev-petrosim.joyon.org
+# - Database: Separate Neon.tech instance (dev data)
+# - S3: dev-petrosim.joyon.org-frontend
+# - CloudFront: Separate distribution (EC4H1MGV4R0MT)
+# - Lambda: Separate stack (petrosim-dev)
+#
+# 🔒 SECURITY:
+# Same OIDC authentication as prod, but with DEV-specific secrets.
+# Dev environment has relaxed permissions for faster iteration.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 
+name: CD Dev — Deploy to Development
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TRIGGER CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# - 'branches-ignore: [main]': Deploys ALL branches EXCEPT main
+# - 'workflow_dispatch': Manual deployment via GitHub UI
+#
+# 💡 WHY THIS PATTERN:
+# - Feature branches auto-deploy to dev (instant feedback)
+# - Main branch deploys to prod (via cd.yml)
+# - Clear separation: dev = feature branches, prod = main
+#
+# 🎯 TYPICAL WORKFLOW:
+# 1. Create feature branch: git checkout -b feat/new-feature
+# 2. Push commits: git push origin feat/new-feature
+# 3. Auto-deploy to dev (this workflow triggers)
+# 4. Test on dev-petrosim.joyon.org
+# 5. Merge to main → auto-deploy to prod (cd.yml triggers)
+# ─────────────────────────────────────────────────────────────────────────────
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore: [main]  # All branches except main
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AWS_REGION: eu-west-3
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONCURRENCY CONTROL
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# Cancels in-progress deploys when new commits are pushed.
+# This is DIFFERENT from prod (which queues deployments).
+#
+# 💡 WHY 'cancel-in-progress: true' FOR DEV:
+# - Faster iteration: No waiting for old deploy to finish
+# - Cost savings: Don't waste resources on outdated code
+# - Developer experience: Always deploying latest commit
+#
+# 🎯 EXAMPLE SCENARIO:
+# Deploy A starts → You push commit B → A is canceled, B starts immediately.
+# This is safe for dev (not production-critical).
+#
+# ⚠️ TRADE-OFF:
+# Potential for incomplete deploys if you push commits rapidly.
+# But dev environment is disposable, so this is acceptable.
+# ─────────────────────────────────────────────────────────────────────────────
 concurrency:
-  group: deploy-dev
-  cancel-in-progress: true
+  group: deploy-dev-${{ github.ref }}  # Unique per branch
+  cancel-in-progress: true  # Cancel old deploys (fast iteration)
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1: CI GATE (QUALITY GATE)
+  # ───────────────────────────────────────────────────────────────────────────
+  # Same as prod: Ensures code quality before deployment
+  # ───────────────────────────────────────────────────────────────────────────
   ci:
-    name: CI Gate
+    name: 🚦 CI Quality Gate
     uses: ./.github/workflows/ci.yml
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 2: DEPLOY DEV BACKEND
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 DIFFERENCES FROM PROD:
+  # - Stack name: petrosim-dev (separate from prod)
+  # - Secrets: DEV_DATABASE_URL, DEV_DOMAIN, etc.
+  # - Tags: Environment=development
+  # - More lenient timeouts (dev can be slower)
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-dev-backend:
-    name: Deploy Dev Backend (Lambda)
+    name: 🚀 Deploy Dev Backend
     needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: aws-actions/configure-aws-credentials@v6
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: 🔐 Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-3
-
-      - uses: aws-actions/setup-sam@v2
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-CD-Dev-Backend-${{ github.run_id }}
+      
+      - name: 🛠️ Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
-
-      - name: SAM Build
-        run: sam build --template-file infra/aws/template.yaml
-
-      - name: SAM Deploy (dev)
+      
+      - name: 🏗️ Build SAM application
+        run: sam build --template-file infra/aws/template.yaml --use-container
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # DEV DEPLOYMENT
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Uses DEV-specific secrets and stack name.
+      # Tags indicate this is a development environment.
+      #
+      # 💡 DEV DATABASE:
+      # Separate Neon.tech database with dev data.
+      # Safe to experiment with schema changes, test migrations, etc.
+      #
+      # 🎯 STACK NAMING:
+      # petrosim-dev vs petrosim (prod)
+      # Allows both stacks to coexist in same AWS account.
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🚢 Deploy to AWS Dev (CloudFormation)
         run: |
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
             --stack-name petrosim-dev \
-            --region eu-west-3 \
+            --region ${{ env.AWS_REGION }} \
             --capabilities CAPABILITY_IAM \
             --resolve-image-repos \
             --resolve-s3 \
@@ -56,47 +165,168 @@ jobs:
               "SyncDatabaseUrl=${{ secrets.DEV_SYNC_DATABASE_URL }}" \
               "DomainName=${{ secrets.DEV_DOMAIN }}" \
               "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}" \
-              "CertificateArn=${{ secrets.DEV_CERTIFICATE_ARN }}"
+              "CertificateArn=${{ secrets.DEV_CERTIFICATE_ARN }}" \
+            --tags \
+              Environment=development \
+              ManagedBy=GitHubActions \
+              Repository=0nde/petrole3 \
+              Branch=${{ github.ref_name }}
+      
+      - name: 🏥 Smoke test (health check)
+        run: |
+          echo "Waiting 10s for Lambda to be ready..."
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.DEV_DOMAIN }}/health || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Dev backend health check passed"
+          else
+            echo "⚠️  Dev backend health check failed (HTTP $HTTP_CODE)"
+            echo "    This is dev, so continuing anyway..."
+          fi
+        continue-on-error: true  # Dev can tolerate failures
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3: DEPLOY DEV FRONTEND
+  # ───────────────────────────────────────────────────────────────────────────
+  # 📖 DIFFERENCES FROM PROD:
+  # - S3 bucket: DEV_S3_BUCKET
+  # - CloudFront: DEV_CLOUDFRONT_DISTRIBUTION_ID
+  # - Shorter cache times (faster iteration)
+  # - More aggressive invalidation (always fresh)
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-dev-frontend:
-    name: Deploy Dev Frontend (S3 + CloudFront)
+    name: 🎨 Deploy Dev Frontend
     needs: deploy-dev-backend
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
     defaults:
       run:
         working-directory: apps/web
+    
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v5
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v5
         with:
           version: 9
-      - uses: actions/setup-node@v6
+      
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: pnpm install
-        working-directory: apps/web
-
-      - name: Build
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # DEV BUILD
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Builds with development optimizations.
+      # Could add source maps, debug symbols, etc. for easier debugging.
+      #
+      # 💡 DEV BUILD OPTIONS:
+      # - Source maps: Easier debugging in browser DevTools
+      # - Less aggressive minification: Faster builds
+      # - Development mode: More helpful error messages
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 🏗️ Build dev bundle
         run: pnpm build
-
-      - uses: aws-actions/configure-aws-credentials@v6
+        env:
+          NODE_ENV: development  # Could enable dev-specific features
+      
+      - name: 🔐 Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-3
-
-      - name: Upload to S3
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-CD-Dev-Frontend-${{ github.run_id }}
+      
+      # ───────────────────────────────────────────────────────────────────────
+      # DEV S3 UPLOAD
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Shorter cache times for dev (faster iteration).
+      # index.html: 10s cache (vs 60s in prod)
+      # Assets: 1 hour cache (vs 1 year in prod)
+      #
+      # 💡 WHY SHORTER CACHES:
+      # - Faster feedback: See changes immediately
+      # - Less aggressive caching: Easier debugging
+      # - Trade-off: Slightly slower page loads (acceptable for dev)
+      # ───────────────────────────────────────────────────────────────────────
+      - name: 📤 Upload to S3 (dev)
         run: |
+          echo "Uploading to dev S3 bucket..."
           aws s3 sync dist/ s3://${{ secrets.DEV_S3_BUCKET }}/ \
             --delete \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html" --exclude "*.json"
+            --cache-control "public, max-age=3600" \
+            --exclude "index.html" \
+            --exclude "*.json"
+          
           aws s3 cp dist/index.html s3://${{ secrets.DEV_S3_BUCKET }}/index.html \
+            --cache-control "public, max-age=10, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+          
+          aws s3 sync dist/ s3://${{ secrets.DEV_S3_BUCKET }}/ \
+            --exclude "*" \
+            --include "*.json" \
             --cache-control "public, max-age=60" \
-            --content-type "text/html"
-
-      - name: Invalidate CloudFront
+            --content-type "application/json"
+          
+          echo "✅ Dev S3 upload complete"
+      
+      - name: 🔄 Invalidate CloudFront (dev)
         run: |
+          echo "Invalidating dev CloudFront..."
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.DEV_CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text
+          echo "✅ Dev CloudFront invalidation created"
+      
+      - name: 🏥 Smoke test (dev frontend)
+        run: |
+          sleep 20
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.DEV_DOMAIN }} || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Dev frontend accessible"
+          else
+            echo "⚠️  Dev frontend check failed (HTTP $HTTP_CODE)"
+          fi
+        continue-on-error: true
+  
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 4: DEV DEPLOYMENT SUCCESS
+  # ───────────────────────────────────────────────────────────────────────────
+  deployment-success:
+    name: ✅ Dev Deployment Success
+    runs-on: ubuntu-latest
+    needs: [deploy-dev-backend, deploy-dev-frontend]
+    if: success()
+    steps:
+      - name: 📢 Dev deployment summary
+        run: |
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "🧪 DEV DEPLOYMENT SUCCESSFUL"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "📦 Branch:    ${{ github.ref_name }}"
+          echo "📦 Commit:    ${{ github.sha }}"
+          echo "👤 Deployer:  ${{ github.actor }}"
+          echo "🕐 Time:      $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "🌐 Dev URLs:"
+          echo "   Frontend: https://${{ secrets.DEV_DOMAIN }}"
+          echo "   Backend:  https://${{ secrets.DEV_DOMAIN }}/api/v1/docs"
+          echo ""
+          echo "💡 This is the DEVELOPMENT environment."
+          echo "   Merge to main to deploy to production."
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
