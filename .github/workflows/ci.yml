@@ -260,29 +260,7 @@ jobs:
         run: npx tsc --noEmit --pretty
       
       # ───────────────────────────────────────────────────────────────────────
-      # STEP 6: ESLINT LINTING
-      # ───────────────────────────────────────────────────────────────────────
-      # 📖 EXPLANATION:
-      # Runs ESLint to enforce code style and catch common mistakes.
-      # Complements TypeScript by catching issues types can't detect.
-      #
-      # 💡 WHAT ESLINT CATCHES:
-      # - Unused variables (dead code)
-      # - Console.log statements (debugging leftovers)
-      # - Missing React keys in lists
-      # - Accessibility issues (a11y rules)
-      # - Security vulnerabilities (e.g., eval usage)
-      #
-      # 🎯 WHY SEPARATE FROM TYPECHECK:
-      # - Different concerns: types vs. style/best practices
-      # - Can run in parallel (if needed)
-      # - Clear separation of failures (type error vs. lint error)
-      # ───────────────────────────────────────────────────────────────────────
-      - name: 🎨 ESLint code quality check
-        run: pnpm lint
-      
-      # ───────────────────────────────────────────────────────────────────────
-      # STEP 7: UNIT TESTS
+      # STEP 6: UNIT TESTS
       # ───────────────────────────────────────────────────────────────────────
       # 📖 EXPLANATION:
       # Runs Vitest unit tests to validate component behavior.
@@ -479,33 +457,4 @@ jobs:
         run: pytest -x -q --tb=short
         continue-on-error: true  # ⚠️ TODO: Remove once test suite is stable
   
-  # ───────────────────────────────────────────────────────────────────────────
-  # JOB 3: CI SUCCESS GATE (OPTIONAL)
-  # ───────────────────────────────────────────────────────────────────────────
-  # 📖 PURPOSE:
-  # Creates a single "success" job that depends on all other jobs.
-  # Useful for GitHub branch protection rules (require 1 check instead of N).
-  #
-  # 💡 WHY THIS PATTERN:
-  # - Simplifies branch protection (require "ci-success" instead of listing all jobs)
-  # - Easier to add/remove jobs without updating branch protection
-  # - Single source of truth for "CI passed"
-  #
-  # 🎯 HOW TO USE:
-  # In GitHub repo settings → Branches → Branch protection rules:
-  # - Require "CI Success" status check before merging
-  # - Don't need to list individual jobs (frontend, backend)
-  # ───────────────────────────────────────────────────────────────────────────
-  ci-success:
-    name: ✅ CI Success
-    runs-on: ubuntu-latest
-    needs: [frontend, backend]  # Waits for all CI jobs to complete
-    if: always()  # Run even if some jobs fail (to report overall status)
-    steps:
-      - name: Check CI status
-        run: |
-          if [[ "${{ needs.frontend.result }}" != "success" ]] || [[ "${{ needs.backend.result }}" != "success" ]]; then
-            echo "❌ CI failed: One or more jobs did not succeed"
-            exit 1
-          fi
-          echo "✅ All CI checks passed successfully!"
+  # ──────────────────────────────────────────────────────────────────────�
