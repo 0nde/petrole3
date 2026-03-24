@@ -610,19 +610,37 @@ jobs:
       # ───────────────────────────────────────────────────────────────────────
       # STEP 9: DEPLOYMENT VERIFICATION (SMOKE TEST)
       # ───────────────────────────────────────────────────────────────────────
+      # 📖 EXPLANATION:
+      # Verifies CloudFront is responding after deployment.
+      # 
+      # 💡 WHY ACCEPT 403:
+      # CloudFront has IP whitelist enabled (update-ip-whitelist.yml).
+      # GitHub Actions runners have dynamic IPs not in the whitelist.
+      # HTTP 403 = CloudFront is working, just blocking the runner IP.
+      # HTTP 200 = No whitelist OR runner IP happens to be allowed.
+      # HTTP 000/5xx = Real problem (CloudFront down, DNS issue, etc.)
+      #
+      # 🎯 SUCCESS CRITERIA:
+      # - 200: Perfect, site accessible
+      # - 403: Expected with IP whitelist, CloudFront working
+      # - Other: Real failure, deployment may have issues
+      # ───────────────────────────────────────────────────────────────────────
       - name: 🏥 Smoke test (frontend health check)
         run: |
           echo "Waiting 30s for CloudFront invalidation to propagate..."
           sleep 30
           
-          # Test that site is accessible and returns HTML
+          # Test that CloudFront is responding
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.DOMAIN }} || echo "000")
           
           if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Frontend health check passed (HTTP $HTTP_CODE)"
+            echo "✅ Frontend accessible (HTTP $HTTP_CODE)"
+          elif [ "$HTTP_CODE" = "403" ]; then
+            echo "✅ CloudFront responding (HTTP 403 - IP whitelist active)"
+            echo "   This is expected: GitHub Actions IPs are not whitelisted"
           else
             echo "❌ Frontend health check failed (HTTP $HTTP_CODE)"
-            echo "⚠️  Site may be unreachable. Check CloudFront distribution."
+            echo "⚠️  CloudFront may be down or misconfigured"
             exit 1
           fi
   
