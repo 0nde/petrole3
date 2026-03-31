@@ -175,6 +175,19 @@ def run_update(
     Returns:
         Summary dict consumed by generate_report.
     """
+    # In dry_run mode we never touch the database
+    if dry_run:
+        logger.info("update_db: DRY RUN — skipping DB connection (%d records)", len(validated))
+        return {
+            "dry_run": True,
+            "baselines_inserted": 0,
+            "baselines_skipped": len(validated),
+            "countries_updated": 0,
+            "country_changes": [],
+            "total_records": len(validated),
+            "unique_countries": len({r["country_code"] for r in validated}),
+        }
+
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
 
@@ -183,16 +196,13 @@ def run_update(
     with Session(engine) as session:
         conn = session.connection()
 
-        baseline_result = update_annual_baselines(conn, validated, dry_run=dry_run)
+        baseline_result = update_annual_baselines(conn, validated, dry_run=False)
 
         countries_result: dict[str, Any] = {"countries_updated": 0, "changes": []}
         if update_simulation_values:
-            countries_result = update_countries_table(conn, validated, dry_run=dry_run)
+            countries_result = update_countries_table(conn, validated, dry_run=False)
 
-        if not dry_run:
-            session.commit()
-        else:
-            session.rollback()
+        session.commit()
 
     summary: dict[str, Any] = {
         "dry_run": dry_run,

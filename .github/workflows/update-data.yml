@@ -78,7 +78,7 @@ on:
           - 'false'
           - 'true'
       execution_mode:
-        description: 'Mode d'exécution'
+        description: "Mode d'exécution"
         required: false
         default: 'direct'
         type: choice
@@ -112,7 +112,7 @@ jobs:
       environment:             ${{ steps.params.outputs.environment }}
       year:                    ${{ steps.params.outputs.year }}
       dry_run:                 ${{ steps.params.outputs.dry_run }}
-      update_simulation_values:${{ steps.params.outputs.update_simulation_values }}
+      update_simulation_values: ${{ steps.params.outputs.update_simulation_values }}
       execution_mode:          ${{ steps.params.outputs.execution_mode }}
     steps:
       - name: Résoudre les paramètres (schedule vs dispatch)

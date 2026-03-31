@@ -93,7 +93,7 @@ def run_pipeline(
 
     # Step 4 — Update DB
     logger.info("[4/5] Updating database (dry_run=%s)…", dry_run)
-    db_url = _get_db_url(environment)
+    db_url = "" if dry_run else _get_db_url(environment)
     summary = run_update(
         sync_db_url=db_url,
         validated=validated,

@@ -9,7 +9,6 @@ The report covers:
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -69,8 +68,8 @@ def generate_report(
     lines: list[str] = []
     lines.append(f"# 🛢️ PetroSim — Mise à jour des données pays ({year})")
     lines.append("")
-    lines.append(f"| Champ | Valeur |")
-    lines.append(f"|---|---|")
+    lines.append("| Champ | Valeur |")
+    lines.append("|---|---|")
     lines.append(f"| **Statut** | {mode_label} |")
     lines.append(f"| **Environnement** | `{env_label}` |")
     lines.append(f"| **Année de données** | {year} |")
