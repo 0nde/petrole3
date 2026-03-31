@@ -302,19 +302,48 @@ jobs:
         id: check-tests
         working-directory: apps/web
         run: |
-          if find src -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" -o -name "*.spec.tsx" 2>/dev/null | grep -q .; then
+          COUNT=$(find src -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" -o -name "*.spec.tsx" 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$COUNT" -gt "0" ]; then
             echo "has_tests=true" >> $GITHUB_OUTPUT
-            echo "✅ Fichiers de test détectés" >> $GITHUB_STEP_SUMMARY
+            echo "test_count=$COUNT" >> $GITHUB_OUTPUT
           else
             echo "has_tests=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ Aucun fichier de test détecté" >> $GITHUB_STEP_SUMMARY
+            echo "test_count=0" >> $GITHUB_OUTPUT
           fi
 
+      - name: 📋 Catalogue des suites de tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        working-directory: apps/web
+        run: |
+          echo "## 🧪 Tests Frontend — Node ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**${{ steps.check-tests.outputs.test_count }} fichier(s) de test détecté(s)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Suite | Fichier testé | Objectif |" >> $GITHUB_STEP_SUMMARY
+          echo "|:------|:--------------|:---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`flowGeometry.test.ts\` | \`src/utils/flowGeometry.ts\` | Fonctions de calcul des routes maritimes (largeur, opacité, grand cercle) |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`ConfidenceBadge.test.tsx\` | \`src/components/ConfidenceBadge.tsx\` | Rendu des badges de confiance par score (Very High → Hypothesis) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: 🧪 Exécuter les tests unitaires
+        id: run-tests
         if: steps.check-tests.outputs.has_tests == 'true'
         working-directory: apps/web
         run: pnpm test
         continue-on-error: true  # ⚠️ TODO: Remove once test suite is stable
+
+      - name: 📊 Résultat des tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: |
+          if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
+            echo "### ✅ Tous les tests passent" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Des tests ont échoué" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Consulter les logs du step ci-dessus pour le détail des échecs." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: 📋 Summary - Aucun test
         if: steps.check-tests.outputs.has_tests == 'false'
