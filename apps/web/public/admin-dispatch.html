@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+PETROSIM — Admin Dispatch Page / Page Admin de Déclenchement
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
+This standalone HTML page demonstrates how to trigger GitHub Actions workflows
+using the repository_dispatch API. It's a simple, self-contained page that
+doesn't require the React build pipeline.
+
+Cette page HTML autonome montre comment déclencher des workflows GitHub Actions
+via l'API repository_dispatch. C'est une page simple et autonome qui ne
+nécessite pas le pipeline de build React.
+
+🎯 KEY CONCEPTS / CONCEPTS CLÉS:
+1. GitHub REST API — POST /repos/{owner}/{repo}/dispatches
+2. Personal Access Token (PAT) — Required for authentication
+3. event_type — Routes to the correct workflow job
+4. client_payload — Custom JSON data passed to the workflow
+
+💡 SECURITY / SÉCURITÉ:
+- The PAT is NEVER stored — it's only held in memory during the session
+  Le PAT n'est JAMAIS stocké — il n'est gardé en mémoire que pendant la session
+- The PAT is entered each time the page is loaded
+  Le PAT est saisi à chaque chargement de la page
+- All requests go directly to GitHub API (no proxy)
+  Toutes les requêtes vont directement à l'API GitHub (pas de proxy)
+
+⚠️ REQUIREMENTS / PRÉREQUIS:
+- A GitHub PAT with 'repo' scope
+  Un PAT GitHub avec le scope 'repo'
+- Create one at: https://github.com/settings/tokens
+  Créer un à : https://github.com/settings/tokens
+
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PetroSim — Admin Dispatch</title>
+  <style>
+    /* ── Minimal dark theme matching PetroSim aesthetics ── */
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 640px;
+      width: 100%;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h2 {
+      font-size: 1.125rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.625rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: inherit;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type="password"] {
+      font-family: monospace;
+      letter-spacing: 0.1em;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.8125rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.8125rem;
+      transition: all 0.15s;
+    }
+
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .action-btn.selected {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+    }
+
+    #log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-entry { margin-bottom: 0.25rem; }
+    .log-info { color: var(--accent); }
+    .log-success { color: var(--success); }
+    .log-warning { color: var(--warning); }
+    .log-error { color: var(--error); }
+
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .info-box code {
+      background: var(--bg);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+    }
+
+    .bilingual { font-style: italic; opacity: 0.7; }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛢️ PetroSim — Admin Dispatch</h1>
+      <p>Trigger GitHub Actions workflows via repository_dispatch API</p>
+      <p class="bilingual">Déclencher des workflows GitHub Actions via l'API repository_dispatch</p>
+    </header>
+
+    <!-- ── Authentication Card ── -->
+    <div class="card">
+      <h2>🔑 Authentication / Authentification</h2>
+      <div class="info-box">
+        ℹ️ A <strong>Personal Access Token</strong> with <code>repo</code> scope is required.
+        <br><span class="bilingual">Un token d'accès personnel avec le scope <code>repo</code> est requis.</span>
+        <br><br>
+        <a href="https://github.com/settings/tokens/new?description=PetroSim+Dispatch&scopes=repo" target="_blank" rel="noopener">
+          → Create a PAT / Créer un PAT
+        </a>
+      </div>
+      <label for="pat">GitHub PAT (never stored / jamais stocké)</label>
+      <input type="password" id="pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+    </div>
+
+    <!-- ── Dispatch Card ── -->
+    <div class="card">
+      <h2>🚀 Dispatch Event / Événement Dispatch</h2>
+
+      <label>Event Type / Type d'événement</label>
+      <div class="actions" id="event-types">
+        <button class="action-btn selected" data-type="ping" onclick="selectType(this)">
+          🏓 Ping
+        </button>
+        <button class="action-btn" data-type="health-check" onclick="selectType(this)">
+          🏥 Health Check
+        </button>
+        <button class="action-btn" data-type="cache-clear" onclick="selectType(this)">
+          🧹 Cache Clear
+        </button>
+      </div>
+
+      <label for="payload">Client Payload (JSON)</label>
+      <textarea id="payload">{"message": "Hello from PetroSim admin page!"}</textarea>
+
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-primary" id="dispatch-btn" onclick="dispatch()">
+          🚀 Send Dispatch
+        </button>
+        <button class="btn btn-secondary" onclick="clearLog()">
+          Clear Log
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Log Card ── -->
+    <div class="card">
+      <h2>📋 Event Log / Journal</h2>
+      <div id="log">
+        <div class="log-entry log-info">Ready. Enter your PAT and select an event type.</div>
+        <div class="log-entry log-info bilingual">Prêt. Entrez votre PAT et sélectionnez un type d'événement.</div>
+      </div>
+    </div>
+
+    <!-- ── Documentation Card ── -->
+    <div class="card">
+      <h2>📚 How it works / Comment ça marche</h2>
+      <div class="info-box">
+        <strong>1.</strong> This page calls the GitHub REST API:<br>
+        <code>POST /repos/0nde/petrole3/dispatches</code><br><br>
+        <strong>2.</strong> GitHub triggers the <code>repository-dispatch.yml</code> workflow<br><br>
+        <strong>3.</strong> The workflow routes to the correct job based on <code>event_type</code><br><br>
+        <strong>4.</strong> The job receives your <code>client_payload</code> as input data<br><br>
+        <span class="bilingual">
+          1. Cette page appelle l'API REST GitHub<br>
+          2. GitHub déclenche le workflow repository-dispatch.yml<br>
+          3. Le workflow route vers le bon job selon event_type<br>
+          4. Le job reçoit votre client_payload comme données d'entrée
+        </span>
+      </div>
+      <div class="info-box">
+        <strong>Equivalent curl command / Commande curl équivalente:</strong><br>
+        <code id="curl-preview" style="display:block;margin-top:0.5rem;white-space:pre-wrap;font-size:0.7rem;">curl -X POST \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Authorization: token YOUR_PAT" \
+  https://api.github.com/repos/0nde/petrole3/dispatches \
+  -d '{"event_type":"ping","client_payload":{"message":"Hello!"}}'</code>
+      </div>
+    </div>
+
+    <footer>
+      PetroSim — Pedagogical Geopolitical Oil Simulator<br>
+      <a href="https://github.com/0nde/petrole3/actions" target="_blank" rel="noopener">
+        View workflow runs on GitHub →
+      </a>
+    </footer>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // DISPATCH LOGIC
+    // ═══════════════════════════════════════════════════════════════════════
+    // 📖 This JavaScript handles the UI interactions and API calls.
+    //    It demonstrates the GitHub REST API for repository_dispatch.
+    //
+    // Ce JavaScript gère les interactions UI et les appels API.
+    // Il démontre l'API REST GitHub pour repository_dispatch.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const REPO_OWNER = "0nde";
+    const REPO_NAME = "petrole3";
+    const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/dispatches`;
+
+    let selectedType = "ping";
+
+    // Payloads templates for each event type
+    const PAYLOAD_TEMPLATES = {
+      "ping": '{"message": "Hello from PetroSim admin page!"}',
+      "health-check": '{"env": "all"}',
+      "cache-clear": '{"reason": "Manual cache purge"}'
+    };
+
+    /**
+     * Select an event type button and update the payload template.
+     * Sélectionner un type d'événement et mettre à jour le template de payload.
+     */
+    function selectType(btn) {
+      document.querySelectorAll(".action-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      selectedType = btn.dataset.type;
+      document.getElementById("payload").value = PAYLOAD_TEMPLATES[selectedType] || "{}";
+      updateCurlPreview();
+    }
+
+    /**
+     * Update the curl command preview.
+     * Mettre à jour l'aperçu de la commande curl.
+     */
+    function updateCurlPreview() {
+      const payload = document.getElementById("payload").value;
+      const curl = `curl -X POST \\
+  -H "Accept: application/vnd.github.v3+json" \\
+  -H "Authorization: token YOUR_PAT" \\
+  ${API_URL} \\
+  -d '${JSON.stringify({ event_type: selectedType, client_payload: tryParseJSON(payload) })}'`;
+      document.getElementById("curl-preview").textContent = curl;
+    }
+
+    /**
+     * Safely parse JSON, returning empty object on failure.
+     * Parser le JSON de manière sûre, retourne un objet vide en cas d'erreur.
+     */
+    function tryParseJSON(str) {
+      try { return JSON.parse(str); }
+      catch { return {}; }
+    }
+
+    /**
+     * Add a log entry to the event log.
+     * Ajouter une entrée au journal d'événements.
+     */
+    function log(message, level = "info") {
+      const logEl = document.getElementById("log");
+      const entry = document.createElement("div");
+      entry.className = `log-entry log-${level}`;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById("log").innerHTML = "";
+      log("Log cleared / Journal vidé", "info");
+    }
+
+    /**
+     * Send the repository_dispatch event to GitHub API.
+     * Envoyer l'événement repository_dispatch à l'API GitHub.
+     *
+     * 📖 API DOCUMENTATION:
+     * POST /repos/{owner}/{repo}/dispatches
+     * - Requires: PAT with 'repo' scope
+     * - Body: { "event_type": "string", "client_payload": {} }
+     * - Returns: 204 No Content on success
+     * - Returns: 404 if repo not found or PAT lacks permissions
+     * - Returns: 422 if payload is invalid
+     */
+    async function dispatch() {
+      const pat = document.getElementById("pat").value.trim();
+      const payloadStr = document.getElementById("payload").value.trim();
+      const btn = document.getElementById("dispatch-btn");
+
+      // Validate inputs
+      if (!pat) {
+        log("❌ PAT is required / Le PAT est requis", "error");
+        return;
+      }
+
+      if (!pat.startsWith("ghp_") && !pat.startsWith("github_pat_")) {
+        log("⚠️  PAT format looks unusual (expected ghp_ or github_pat_ prefix)", "warning");
+      }
+
+      let clientPayload;
+      try {
+        clientPayload = JSON.parse(payloadStr);
+      } catch (e) {
+        log(`❌ Invalid JSON payload: ${e.message}`, "error");
+        return;
+      }
+
+      // Build request body
+      const body = {
+        event_type: selectedType,
+        client_payload: clientPayload
+      };
+
+      log(`🚀 Dispatching '${selectedType}' to ${REPO_OWNER}/${REPO_NAME}...`, "info");
+      log(`   Payload: ${JSON.stringify(clientPayload)}`, "info");
+
+      // Disable button during request
+      btn.disabled = true;
+      btn.textContent = "⏳ Sending...";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": `token ${pat}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (response.status === 204) {
+          log(`✅ Dispatch successful! (HTTP 204 No Content)`, "success");
+          log(`   → View runs: https://github.com/${REPO_OWNER}/${REPO_NAME}/actions`, "success");
+        } else if (response.status === 404) {
+          log(`❌ HTTP 404 — Check your PAT has 'repo' scope`, "error");
+        } else if (response.status === 422) {
+          const data = await response.json();
+          log(`❌ HTTP 422 — Invalid request: ${data.message}`, "error");
+        } else {
+          const text = await response.text();
+          log(`❌ HTTP ${response.status} — ${text}`, "error");
+        }
+      } catch (error) {
+        log(`❌ Network error: ${error.message}`, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🚀 Send Dispatch";
+      }
+    }
+
+    // Update curl preview when payload changes
+    document.getElementById("payload").addEventListener("input", updateCurlPreview);
+
+    // Initial curl preview
+    updateCurlPreview();
+  </script>
+</body>
+</html>

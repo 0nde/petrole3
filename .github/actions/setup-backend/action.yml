@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMPOSITE ACTION — Setup Backend Environment
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
+# Mirrors the setup-frontend composite action but for the Python/FastAPI backend.
+# Bundles Python setup + pip caching + dependency installation into one step.
+#
+# Miroir de l'action composite setup-frontend mais pour le backend Python/FastAPI.
+# Regroupe la configuration Python + cache pip + installation des dépendances.
+#
+# 🎯 WHY TWO SEPARATE ACTIONS / POURQUOI DEUX ACTIONS SÉPARÉES:
+# - Frontend and backend have different toolchains (Node vs Python)
+#   Frontend et backend ont des chaînes d'outils différentes
+# - Separation of concerns: each action does one thing well
+#   Séparation des responsabilités : chaque action fait une chose bien
+# - Can be used independently (e.g., backend-only scripts)
+#   Peut être utilisé indépendamment (ex: scripts backend uniquement)
+#
+# 📁 FILE LOCATION: .github/actions/setup-backend/action.yml
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Setup Backend Environment"
+description: |
+  Sets up Python and installs backend dependencies with pip caching.
+  Configure Python et installe les dépendances backend avec cache pip.
+
+inputs:
+  python-version:
+    description: "Python version to install / Version de Python à installer"
+    required: false
+    default: "3.12"
+  working-directory:
+    description: "Backend app directory / Répertoire de l'app backend"
+    required: false
+    default: "apps/api"
+
+outputs:
+  python-version:
+    description: "Actual Python version installed"
+    value: ${{ steps.setup-python.outputs.python-version }}
+  cache-hit:
+    description: "Whether pip cache was hit / Si le cache pip a été trouvé"
+    value: ${{ steps.setup-python.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: 🐍 Setup Python ${{ inputs.python-version }}
+      id: setup-python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: "pip"
+        cache-dependency-path: ${{ inputs.working-directory }}/requirements.txt
+
+    - name: 📚 Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pip install -r requirements.txt
+
+    - name: ✅ Backend setup complete
+      shell: bash
+      run: |
+        echo "::notice::Backend environment ready — Python ${{ inputs.python-version }}"
+        echo "Cache hit: ${{ steps.setup-python.outputs.cache-hit }}"

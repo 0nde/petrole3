@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# JAVASCRIPT ACTION — Deployment Report Generator
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
+# A **JavaScript action** runs Node.js code directly on the runner.
+# Unlike composite actions (YAML steps) or Docker actions (containers),
+# JS actions have direct access to the GitHub Actions toolkit (@actions/core,
+# @actions/github) for rich interactions with the GitHub API.
+#
+# Une **action JavaScript** exécute du code Node.js directement sur le runner.
+# Contrairement aux actions composites (étapes YAML) ou Docker (conteneurs),
+# les actions JS ont un accès direct au toolkit GitHub Actions pour des
+# interactions riches avec l'API GitHub.
+#
+# 🎯 THREE TYPES OF CUSTOM ACTIONS / TROIS TYPES D'ACTIONS PERSONNALISÉES:
+# ┌─────────────┬────────────────────────────────────────────────────────┐
+# │ Type        │ Description                                            │
+# ├─────────────┼────────────────────────────────────────────────────────┤
+# │ Composite   │ YAML steps bundled together (setup-frontend above)     │
+# │ JavaScript  │ Node.js code with GitHub toolkit (THIS action)         │
+# │ Docker      │ Runs in a container (any language, isolated)           │
+# └─────────────┴────────────────────────────────────────────────────────┘
+#
+# 💡 WHY JAVASCRIPT ACTIONS / POURQUOI LES ACTIONS JAVASCRIPT:
+# - Direct access to @actions/core (logging, inputs, outputs, summaries)
+#   Accès direct à @actions/core (logs, entrées, sorties, résumés)
+# - Direct access to @actions/github (GitHub API, Octokit client)
+#   Accès direct à @actions/github (API GitHub, client Octokit)
+# - Faster startup than Docker actions (no container build)
+#   Démarrage plus rapide que les actions Docker (pas de build conteneur)
+# - Rich output: Job Summaries, annotations, workflow commands
+#   Sortie riche : résumés de job, annotations, commandes de workflow
+#
+# 🔧 STRUCTURE OF A JS ACTION / STRUCTURE D'UNE ACTION JS:
+# .github/actions/deployment-report/
+# ├── action.yml     ← Action metadata (this file / ce fichier)
+# ├── index.js       ← Main logic (executed by Node.js / exécuté par Node.js)
+# └── package.json   ← Dependencies (optional / optionnel)
+#
+# ⚠️ IMPORTANT — BUNDLING:
+# In production, JS actions should be bundled with @vercel/ncc to avoid
+# committing node_modules. Here we keep it simple for pedagogical purposes.
+# En production, les actions JS devraient être bundlées avec @vercel/ncc.
+# Ici on garde simple pour des raisons pédagogiques.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Deployment Report"
+description: |
+  Generates a rich deployment summary using GitHub Actions Job Summaries.
+  Génère un résumé de déploiement riche via les résumés de job GitHub Actions.
+
+inputs:
+  environment:
+    description: "Deployment environment (production/development)"
+    required: true
+  status:
+    description: "Deployment status (success/failure)"
+    required: true
+    default: "success"
+  frontend-url:
+    description: "URL of the deployed frontend"
+    required: false
+    default: ""
+  backend-url:
+    description: "URL of the deployed backend API docs"
+    required: false
+    default: ""
+  deploy-duration:
+    description: "Total deployment duration in seconds"
+    required: false
+    default: "0"
+
+outputs:
+  report-md:
+    description: "Generated Markdown report"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXECUTION — How the action runs
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# 'node24' tells GitHub to execute index.js with Node.js 24.
+# Previous versions used 'node12', 'node16', 'node20'.
+# Always use the latest supported version for security and performance.
+#
+# 'node24' indique à GitHub d'exécuter index.js avec Node.js 24.
+# Toujours utiliser la dernière version supportée.
+# ─────────────────────────────────────────────────────────────────────────────
+runs:
+  using: "node24"
+  main: "index.js"

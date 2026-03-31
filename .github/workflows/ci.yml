@@ -21,7 +21,7 @@
 # - **Caching** reduces build time from ~2min to ~30s on cache hits
 #
 # 🔒 SECURITY CONSIDERATIONS:
-# - Uses pinned action versions (@v6) to prevent supply chain attacks
+# - Uses SHA-pinned action versions to prevent supply chain attacks
 # - Minimal permissions (contents: read only)
 # - No secrets exposed in this workflow (read-only operations)
 #
@@ -59,6 +59,24 @@ on:
 #   - This flag ensures all JavaScript actions use Node 24 (future-proofing)
 #   - Prevents deprecation warnings and ensures compatibility
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# PERMISSIONS
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLANATION:
+# Setting top-level permissions restricts what the GITHUB_TOKEN can do.
+# This follows the principle of least privilege: only grant what's needed.
+#
+# 💡 WHY 'contents: read':
+# CI only reads code, it never writes to the repository.
+# This prevents accidental (or malicious) code modifications.
+#
+# 🔒 SECURITY:
+# Without explicit permissions, the GITHUB_TOKEN gets default permissions
+# which may be overly permissive. Always declare permissions explicitly.
+# ─────────────────────────────────────────────────────────────────────────────
+permissions:
+  contents: read  # Only need to read code for CI checks
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -163,7 +181,8 @@ jobs:
       # This is almost always the first step in any workflow.
       #
       # 🔒 SECURITY:
-      # - Uses @v6 (pinned version) to prevent supply chain attacks
+      # - Uses SHA-pinned version to prevent supply chain attacks
+      #   (tags can be moved, SHAs are immutable)
       # - Only clones the specific commit being tested (shallow clone)
       #
       # 💡 ADVANCED OPTIONS:
@@ -171,7 +190,7 @@ jobs:
       # - 'submodules: true' if your repo uses git submodules
       # ───────────────────────────────────────────────────────────────────────
       - name: 📥 Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       
       # ───────────────────────────────────────────────────────────────────────
       # STEP 2: SETUP PNPM
@@ -189,7 +208,7 @@ jobs:
       # pnpm/action-setup MUST run before setup-node for caching to work.
       # ───────────────────────────────────────────────────────────────────────
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
         with:
           version: 9  # Pin to major version for stability
       
@@ -216,7 +235,7 @@ jobs:
       # - Oldest caches are evicted when limit is reached
       # ───────────────────────────────────────────────────────────────────────
       - name: 🔧 Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'  # 🚀 Enables automatic dependency caching
@@ -329,7 +348,7 @@ jobs:
       # STEP 1: CHECKOUT CODE
       # ───────────────────────────────────────────────────────────────────────
       - name: 📥 Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       
       # ───────────────────────────────────────────────────────────────────────
       # STEP 2: SETUP PYTHON
@@ -352,7 +371,7 @@ jobs:
       # No need to manually create/activate venv in CI.
       # ───────────────────────────────────────────────────────────────────────
       - name: 🐍 Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'  # 🚀 Enables automatic pip caching
