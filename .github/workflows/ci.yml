@@ -295,13 +295,35 @@ jobs:
       # Then upload to Codecov/Coveralls for tracking over time.
       #
       # ⚠️ CURRENT STATUS:
-      # 'continue-on-error: true' means test failures don't block the workflow.
-      # This is a temporary measure while building out test suite.
-      # REMOVE THIS once tests are comprehensive and reliable.
+      # Tests are conditionally executed only if test files exist.
+      # This avoids noisy empty test reports in CI summaries.
       # ───────────────────────────────────────────────────────────────────────
-      - name: 🧪 Run unit tests
+      - name: 🔍 Vérifier la présence de tests
+        id: check-tests
+        working-directory: apps/web
+        run: |
+          if find src -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" -o -name "*.spec.tsx" 2>/dev/null | grep -q .; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Fichiers de test détectés" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Aucun fichier de test détecté" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🧪 Exécuter les tests unitaires
+        if: steps.check-tests.outputs.has_tests == 'true'
+        working-directory: apps/web
         run: pnpm test
         continue-on-error: true  # ⚠️ TODO: Remove once test suite is stable
+
+      - name: 📋 Summary - Aucun test
+        if: steps.check-tests.outputs.has_tests == 'false'
+        run: |
+          echo "## 🧪 Tests Frontend (Node ${{ matrix.node-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **Statut** : Aucun test unitaire trouvé" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> La suite de tests sera ajoutée progressivement au fur et à mesure du développement." >> $GITHUB_STEP_SUMMARY
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 2: BACKEND VALIDATION
