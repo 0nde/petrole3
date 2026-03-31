@@ -1,9 +1,6 @@
-# 📚 PetroSim — GitHub Actions Complete Guide / Guide Complet GitHub Actions
+# 📚 PetroSim — Guide Complet GitHub Actions
 
-> **Bilingual pedagogical guide / Guide pédagogique bilingue (EN/FR)**
->
-> This document covers every GitHub Actions feature used in PetroSim, from basic
-> concepts to advanced patterns. Each section explains *what*, *why*, and *how*.
+> **Guide pédagogique**
 >
 > Ce document couvre chaque fonctionnalité GitHub Actions utilisée dans PetroSim,
 > des concepts de base aux patterns avancés. Chaque section explique *quoi*,
@@ -11,23 +8,23 @@
 
 ---
 
-## 📋 Table of Contents / Sommaire
+## 📋 Sommaire
 
-1. [Architecture Overview / Vue d'ensemble](#1-architecture-overview)
-2. [Trigger Types / Types de déclencheurs](#2-trigger-types)
-3. [SHA Pinning / Épinglage SHA](#3-sha-pinning)
-4. [Permissions & Security / Permissions et Sécurité](#4-permissions--security)
-5. [Composite Actions / Actions Composites](#5-composite-actions)
-6. [JavaScript Actions / Actions JavaScript](#6-javascript-actions)
-7. [Reusable Workflows / Workflows Réutilisables](#7-reusable-workflows)
-8. [Scheduled Workflows / Workflows Planifiés](#8-scheduled-workflows)
-9. [Repository Dispatch / Déclenchement Externe](#9-repository-dispatch)
-10. [File Map / Carte des Fichiers](#10-file-map)
-11. [Quick Reference / Référence Rapide](#11-quick-reference)
+1. [Vue d'ensemble de l'architecture](#1-vue-densemble-de-larchitecture)
+2. [Types de déclencheurs](#2-types-de-déclencheurs)
+3. [Épinglage SHA](#3-épinglage-sha)
+4. [Permissions et Sécurité](#4-permissions-et-sécurité)
+5. [Actions Composites](#5-actions-composites)
+6. [Actions JavaScript](#6-actions-javascript)
+7. [Workflows Réutilisables](#7-workflows-réutilisables)
+8. [Workflows Planifiés](#8-workflows-planifiés)
+9. [Déclenchement Externe (Repository Dispatch)](#9-déclenchement-externe)
+10. [Carte des Fichiers](#10-carte-des-fichiers)
+11. [Référence Rapide](#11-référence-rapide)
 
 ---
 
-## 1. Architecture Overview
+## 1. Vue d'ensemble de l'architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -37,27 +34,27 @@
 │  WORKFLOWS (.github/workflows/)                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │  ci.yml       │  │  cd.yml       │  │  cd-dev.yml          │  │
-│  │  Lint+Test    │←─│  Deploy Prod  │  │  Deploy Dev          │  │
-│  │  (reusable)   │  │  needs: ci    │  │  needs: ci           │  │
+│  │  Lint+Test    │←─│  Déploi Prod  │  │  Déploi Dev          │  │
+│  │  (réutilisable)│  │  needs: ci    │  │  needs: ci           │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │  smoke-test   │  │  scheduled-   │  │  repository-         │  │
 │  │  .yml         │  │  health-check │  │  dispatch.yml        │  │
-│  │  (reusable)   │  │  .yml (cron)  │  │  (external trigger)  │  │
+│  │  (réutilisable)│  │  .yml (cron)  │  │  (déclencheur ext.)  │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  update-ip-whitelist.yml (workflow_dispatch)              │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
-│  CUSTOM ACTIONS (.github/actions/)                               │
+│  ACTIONS PERSONNALISÉES (.github/actions/)                        │
 │  ┌────────────────┐ ┌────────────────┐ ┌─────────────────────┐  │
 │  │ setup-frontend  │ │ setup-backend   │ │ deployment-report   │  │
 │  │ (composite)     │ │ (composite)     │ │ (JavaScript/Node24) │  │
 │  └────────────────┘ └────────────────┘ └─────────────────────┘  │
 │                                                                  │
-│  ADMIN UI (apps/web/public/)                                     │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │ admin-dispatch.html — Trigger repository_dispatch events  │   │
+│  INTERFACE ADMIN (apps/web/public/)                               │
+│  ┌────────────────────────────────────────────────────────┐   │
+│  │ admin-dispatch.html — Déclencher des événements dispatch   │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -65,57 +62,55 @@
 
 ---
 
-## 2. Trigger Types
+## 2. Types de déclencheurs
 
-PetroSim demonstrates **6 different trigger types**:
+PetroSim démontre **6 types de déclencheurs différents** :
 
-| Trigger | File | Description (EN) | Description (FR) |
-|:--------|:-----|:------------------|:------------------|
-| `push` | ci.yml, cd.yml, cd-dev.yml | On code push | Au push de code |
-| `pull_request` | ci.yml | On PR creation/update | À la création/mise à jour de PR |
-| `workflow_call` | ci.yml, smoke-test.yml | Called by other workflows | Appelé par d'autres workflows |
-| `workflow_dispatch` | cd.yml, cd-dev.yml, update-ip-whitelist.yml, scheduled-health-check.yml | Manual trigger via GitHub UI | Déclenchement manuel via l'UI GitHub |
-| `schedule` | scheduled-health-check.yml | Cron-based automatic execution | Exécution automatique basée sur cron |
-| `repository_dispatch` | repository-dispatch.yml | External API trigger | Déclenchement via API externe |
+| Déclencheur | Fichier | Description |
+|:-----------|:--------|:------------|
+| `push` | ci.yml, cd.yml, cd-dev.yml | Au push de code |
+| `pull_request` | ci.yml | À la création/mise à jour de PR |
+| `workflow_call` | ci.yml, smoke-test.yml | Appelé par d'autres workflows |
+| `workflow_dispatch` | cd.yml, cd-dev.yml, update-ip-whitelist.yml, scheduled-health-check.yml | Déclenchement manuel via l'UI GitHub |
+| `schedule` | scheduled-health-check.yml | Exécution automatique basée sur cron |
+| `repository_dispatch` | repository-dispatch.yml | Déclenchement via API externe |
 
-### Cron Syntax / Syntaxe Cron
+### Syntaxe Cron
 
 ```
 ┌───────────── minute (0–59)
-│ ┌───────────── hour (0–23, UTC)
-│ │ ┌───────────── day of month (1–31)
-│ │ │ ┌───────────── month (1–12)
-│ │ │ │ ┌───────────── day of week (0–6, Sunday=0)
+│ ┌───────────── heure (0–23, UTC)
+│ │ ┌───────────── jour du mois (1–31)
+│ │ │ ┌───────────── mois (1–12)
+│ │ │ │ ┌───────────── jour de la semaine (0–6, Dimanche=0)
 │ │ │ │ │
 * * * * *
 ```
 
-**Examples / Exemples:**
-- `30 */6 * * *` → Every 6 hours at :30 (our health check)
-- `0 8 * * 1-5` → Weekdays at 08:00 UTC
-- `0 0 1 * *` → First of each month at midnight
+**Exemples :**
+- `30 */6 * * *` → Toutes les 6 heures à :30 (notre health check)
+- `0 8 * * 1-5` → Jours ouvrables à 08:00 UTC
+- `0 0 1 * *` → Premier de chaque mois à minuit
 
 ---
 
-## 3. SHA Pinning
+## 3. Épinglage SHA
 
-### Why SHA over tags / Pourquoi SHA plutôt que les tags
+### Pourquoi SHA plutôt que les tags
 
-Tags can be **moved** (reassigned to a different commit). A malicious actor who compromises an action's repository could point `v6` to malicious code. SHA hashes are **immutable** — they always point to the exact same code.
+Les tags peuvent être **déplacés** (réassignés à un commit différent). Un acteur malveillant qui compromet le dépôt d'une action pourrait faire pointer `v6` vers du code malveillant. Les SHA sont **immuables** — ils pointent toujours vers exactement le même code.
 
-Les tags peuvent être **déplacés** (réassignés à un commit différent). Un SHA est **immuable** — il pointe toujours vers le même code exact.
-
-### Before → After / Avant → Après
+### Avant → Après
 
 ```yaml
-# ❌ BEFORE: Tag-based (mutable, vulnerable)
+# ❌ AVANT : basé sur les tags (mutable, vulnérable)
 - uses: actions/checkout@v6
 
-# ✅ AFTER: SHA-pinned (immutable, secure)
+# ✅ APRÈS : épinglé par SHA (immuable, sécurisé)
 - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 ```
 
-### Current SHA Map / Carte SHA Actuelle
+### Carte SHA actuelle
 
 | Action | Version | SHA |
 |:-------|:--------|:----|
@@ -126,17 +121,17 @@ Les tags peuvent être **déplacés** (réassignés à un commit différent). Un
 | `aws-actions/configure-aws-credentials` | v6.0.0 | `8df5847569e6427dd6c4fb1cf565c83acfa8afa7` |
 | `aws-actions/setup-sam` | v2 | `d78e1a4a9656d3b223e59b80676a797f20093133` |
 
-### How to Find SHA / Comment Trouver le SHA
+### Comment trouver le SHA
 
-1. Go to the action's **Releases** page (e.g., `github.com/actions/checkout/releases`)
-2. Click the commit SHA next to the version tag
-3. Copy the full 40-character SHA
-4. Add a comment with the tag name for readability: `# v6.0.2`
+1. Aller sur la page **Releases** de l'action (ex : `github.com/actions/checkout/releases`)
+2. Cliquer sur le SHA du commit à côté du tag de version
+3. Copier le SHA complet de 40 caractères
+4. Ajouter un commentaire avec le nom du tag pour la lisibilité : `# v6.0.2`
 
-### Dependabot Auto-Updates
+### Mises à jour automatiques Dependabot
 
-Dependabot is configured to check GitHub Actions weekly and will create PRs
-to update SHA hashes when new versions are released:
+Dependabot est configuré pour vérifier les GitHub Actions chaque semaine et
+créera des PRs pour mettre à jour les SHA quand de nouvelles versions sortent :
 
 ```yaml
 # .github/dependabot.yml
@@ -148,56 +143,52 @@ to update SHA hashes when new versions are released:
 
 ---
 
-## 4. Permissions & Security
+## 4. Permissions et Sécurité
 
-### Principle of Least Privilege / Principe du Moindre Privilège
-
-Every workflow declares **explicit permissions** at the top level. This restricts
-what the `GITHUB_TOKEN` can do, preventing accidental or malicious misuse.
+### Principe du moindre privilège
 
 Chaque workflow déclare des **permissions explicites** au niveau supérieur.
+Cela restreint ce que le `GITHUB_TOKEN` peut faire, empêchant toute utilisation
+accidentelle ou malveillante.
 
 ```yaml
-# CI: Read-only (no writes needed)
+# CI : Lecture seule (aucune écriture nécessaire)
 permissions:
   contents: read
 
-# CD: OIDC + read (deploy to AWS)
+# CD : OIDC + lecture (déploiement AWS)
 permissions:
-  id-token: write   # For OIDC JWT token
-  contents: read     # For code checkout
+  id-token: write   # Pour le token JWT OIDC
+  contents: read     # Pour le checkout du code
 
-# Repository Dispatch: Read + cache management
+# Repository Dispatch : Lecture + gestion du cache
 permissions:
   contents: read
-  actions: write     # For cache deletion API
+  actions: write     # Pour l'API de suppression du cache
 ```
 
-### Security Checklist / Liste de Contrôle Sécurité
+### Liste de contrôle sécurité
 
-| Check | Status | Description |
-|:------|:-------|:------------|
-| SHA-pinned actions | ✅ | All actions use immutable SHA references |
-| Explicit permissions | ✅ | All workflows declare minimal permissions |
-| OIDC authentication | ✅ | No long-lived AWS credentials |
-| No hardcoded secrets | ✅ | All secrets in GitHub Secrets |
-| No domain names in code | ✅ | Domains stored in secrets only |
-| Dependabot enabled | ✅ | Weekly checks for action updates |
-| Concurrency controls | ✅ | Prevents parallel deployments |
+| Vérification | Statut | Description |
+|:------------|:-------|:------------|
+| Actions épinglées par SHA | ✅ | Toutes les actions utilisent des références SHA immuables |
+| Permissions explicites | ✅ | Tous les workflows déclarent des permissions minimales |
+| Authentification OIDC | ✅ | Pas de credentials AWS à longue durée |
+| Pas de secrets en dur | ✅ | Tous les secrets dans GitHub Secrets |
+| Pas de noms de domaine dans le code | ✅ | Domaines stockés dans les secrets uniquement |
+| Dependabot activé | ✅ | Vérifications hebdomadaires des mises à jour d'actions |
+| Contrôles de concurrence | ✅ | Empêche les déploiements parallèles |
 
 ---
 
-## 5. Composite Actions
+## 5. Actions Composites
 
-### What / Quoi
-
-Composite actions bundle multiple steps into a **single reusable unit** that runs
-**inside the caller's job** (same runner, shared state).
+### Définition
 
 Les actions composites regroupent plusieurs étapes en une **unité réutilisable**
 qui s'exécute **dans le job appelant** (même runner, état partagé).
 
-### Files / Fichiers
+### Fichiers
 
 ```
 .github/actions/
@@ -207,7 +198,7 @@ qui s'exécute **dans le job appelant** (même runner, état partagé).
     └── action.yml    ← Python + pip + install
 ```
 
-### Usage Example / Exemple d'Utilisation
+### Exemple d'utilisation
 
 ```yaml
 steps:
@@ -216,111 +207,106 @@ steps:
     with:
       node-version: "22"
       pnpm-version: "9"
-  - run: pnpm build  # Dependencies are already installed!
+  - run: pnpm build  # Les dépendances sont déjà installées !
 ```
 
-### Key Rules / Règles Clés
+### Règles clés
 
-1. Each `run:` step **must** specify `shell:` (e.g., `shell: bash`)
-2. Use `${{ inputs.xxx }}` to reference input parameters
-3. File must be named `action.yml` (not `action.yaml`)
-4. Located in `.github/actions/<name>/action.yml`
+1. Chaque étape `run:` **doit** spécifier `shell:` (ex : `shell: bash`)
+2. Utiliser `${{ inputs.xxx }}` pour référencer les paramètres d'entrée
+3. Le fichier doit s'appeler `action.yml` (pas `action.yaml`)
+4. Situé dans `.github/actions/<nom>/action.yml`
 
 ---
 
-## 6. JavaScript Actions
+## 6. Actions JavaScript
 
-### What / Quoi
-
-JavaScript actions run **Node.js code** directly on the runner with access to
-the GitHub Actions toolkit (`@actions/core`, `@actions/github`).
+### Définition
 
 Les actions JavaScript exécutent du **code Node.js** directement sur le runner
-avec accès au toolkit GitHub Actions.
+avec accès au toolkit GitHub Actions (`@actions/core`, `@actions/github`).
 
-### Files / Fichiers
+### Fichiers
 
 ```
 .github/actions/deployment-report/
-├── action.yml       ← Action metadata
-├── index.js         ← Main logic (Node.js)
-├── package.json     ← Dependencies
-└── node_modules/    ← Installed packages
+├── action.yml       ← Métadonnées de l'action
+├── index.js         ← Logique principale (Node.js)
+├── package.json     ← Dépendances
+└── node_modules/    ← Paquets installés
 ```
 
-### Three Types of Custom Actions / Trois Types d'Actions Personnalisées
+### Trois types d'actions personnalisées
 
-| Type | Language | Execution | Use Case |
-|:-----|:---------|:----------|:---------|
-| **Composite** | YAML | Inside caller's job | Bundle setup steps |
-| **JavaScript** | Node.js | Inside caller's job | Rich GitHub API interaction |
-| **Docker** | Any | In a container | Any language, full isolation |
+| Type | Langage | Exécution | Cas d'usage |
+|:-----|:--------|:----------|:------------|
+| **Composite** | YAML | Dans le job appelant | Regrouper des étapes de setup |
+| **JavaScript** | Node.js | Dans le job appelant | Interaction riche avec l'API GitHub |
+| **Docker** | Tout | Dans un conteneur | Tout langage, isolation complète |
 
-### Key Toolkit Methods / Méthodes Clés du Toolkit
+### Méthodes clés du toolkit
 
 ```javascript
 const core = require("@actions/core");
 const github = require("@actions/github");
 
-// Read inputs from action.yml
+// Lire les entrées depuis action.yml
 const env = core.getInput("environment", { required: true });
 
-// Set outputs for downstream steps
+// Définir les sorties pour les étapes en aval
 core.setOutput("report-md", markdownReport);
 
-// Write rich Job Summary (appears in Actions UI)
+// Écrire un résumé de job riche (apparaît dans l'UI Actions)
 await core.summary.addRaw(markdownContent).write();
 
-// Logging levels
-core.info("Standard log message");
-core.warning("Yellow warning annotation");
-core.error("Red error annotation");
-core.notice("Blue notice annotation");
+// Niveaux de log
+core.info("Message de log standard");
+core.warning("Annotation d'avertissement jaune");
+core.error("Annotation d'erreur rouge");
+core.notice("Annotation de notification bleue");
 
-// Access GitHub context
+// Accéder au contexte GitHub
 const { owner, repo } = github.context.repo;
 const sha = github.context.sha;
 ```
 
 ---
 
-## 7. Reusable Workflows
+## 7. Workflows Réutilisables
 
-### What / Quoi
-
-Reusable workflows are **complete workflows** that other workflows can call.
-They run as a **separate job** with their own runner (unlike composite actions).
+### Définition
 
 Les workflows réutilisables sont des **workflows complets** que d'autres workflows
-peuvent appeler. Ils s'exécutent comme un **job séparé** avec leur propre runner.
+peuvent appeler. Ils s'exécutent comme un **job séparé** avec leur propre runner
+(contrairement aux actions composites).
 
-### Comparison / Comparaison
+### Comparaison
 
-| Feature | Reusable Workflow | Composite Action |
-|:--------|:------------------|:-----------------|
-| Execution | Separate job/runner | Inside caller's job |
-| Secrets | Via `secrets:` keyword | Via caller's env |
-| Can have jobs | Yes (multiple) | No (steps only) |
-| Max nesting | 4 levels deep | Unlimited |
-| File location | `.github/workflows/` | `.github/actions/<name>/` |
+| Caractéristique | Workflow réutilisable | Action composite |
+|:----------------|:---------------------|:-----------------|
+| Exécution | Job/runner séparé | Dans le job appelant |
+| Secrets | Via le mot-clé `secrets:` | Via l'env de l'appelant |
+| Peut avoir des jobs | Oui (multiples) | Non (étapes uniquement) |
+| Imbrication max | 4 niveaux | Illimitée |
+| Emplacement | `.github/workflows/` | `.github/actions/<nom>/` |
 
-### Usage / Utilisation
+### Utilisation
 
-**Caller (cd.yml):**
+**Appelant (cd.yml) :**
 ```yaml
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml  # Reusable workflow call
+    uses: ./.github/workflows/ci.yml  # Appel de workflow réutilisable
   
   smoke-test:
     uses: ./.github/workflows/smoke-test.yml
     with:
       environment: production
       url: ${{ secrets.DOMAIN }}
-    secrets: inherit  # Pass all secrets
+    secrets: inherit  # Passer tous les secrets
 ```
 
-**Callee (smoke-test.yml):**
+**Appelé (smoke-test.yml) :**
 ```yaml
 on:
   workflow_call:
@@ -333,159 +319,154 @@ on:
         value: ${{ jobs.smoke.outputs.healthy }}
 ```
 
-### PetroSim Reusable Workflows
+### Workflows réutilisables de PetroSim
 
-| Workflow | Called By | Purpose |
-|:---------|:---------|:--------|
-| `ci.yml` | cd.yml, cd-dev.yml | CI quality gate before deployment |
-| `smoke-test.yml` | Any workflow needing health checks | HTTP health verification |
-
----
-
-## 8. Scheduled Workflows
-
-### What / Quoi
-
-Scheduled workflows run automatically at fixed intervals using **cron syntax**.
-They always run on the **default branch** (main).
-
-Les workflows planifiés s'exécutent automatiquement à intervalles fixes.
-Ils s'exécutent toujours sur la **branche par défaut** (main).
-
-### PetroSim Schedule
-
-| Workflow | Schedule | Purpose |
-|:---------|:---------|:--------|
-| `scheduled-health-check.yml` | Every 6 hours at :30 | Monitor prod & dev health |
-
-### Important Notes / Notes Importantes
-
-- ⏰ **Timezone**: Always UTC (not local time)
-- ⏱️ **Minimum interval**: 5 minutes (GitHub-enforced)
-- 💤 **Auto-disable**: After 60 days of repo inactivity
-- ⚡ **Delay possible**: Not guaranteed exact timing during high load
-- 🌿 **Branch**: Always runs on default branch (main)
+| Workflow | Appelé par | Objectif |
+|:---------|:----------|:---------|
+| `ci.yml` | cd.yml, cd-dev.yml | Porte de qualité CI avant déploiement |
+| `smoke-test.yml` | Tout workflow nécessitant des health checks | Vérification de santé HTTP |
 
 ---
 
-## 9. Repository Dispatch
+## 8. Workflows Planifiés
 
-### What / Quoi
+### Définition
 
-`repository_dispatch` allows **external systems** to trigger workflows via the
-GitHub REST API. PetroSim includes an admin page for easy triggering.
+Les workflows planifiés s'exécutent automatiquement à intervalles fixes
+en utilisant la **syntaxe cron**. Ils s'exécutent toujours sur la **branche
+par défaut** (main).
+
+### Planification PetroSim
+
+| Workflow | Fréquence | Objectif |
+|:---------|:---------|:---------|
+| `scheduled-health-check.yml` | Toutes les 6 heures à :30 | Surveiller la santé prod & dev |
+
+### Notes importantes
+
+- ⏰ **Fuseau horaire** : Toujours UTC (pas l'heure locale)
+- ⏱️ **Intervalle minimum** : 5 minutes (imposé par GitHub)
+- 💤 **Désactivation auto** : Après 60 jours d'inactivité du dépôt
+- ⚡ **Délai possible** : Timing exact non garanti en période de forte charge
+- 🌿 **Branche** : S'exécute toujours sur la branche par défaut (main)
+
+---
+
+## 9. Déclenchement Externe (Repository Dispatch)
+
+### Définition
 
 `repository_dispatch` permet aux **systèmes externes** de déclencher des workflows
 via l'API REST GitHub. PetroSim inclut une page admin pour un déclenchement facile.
 
-### Event Types / Types d'Événements
+### Types d'événements
 
-| Event Type | Job | Description |
-|:-----------|:----|:------------|
-| `ping` | Simple test | Confirms dispatch mechanism works |
-| `health-check` | Health verification | Checks prod/dev endpoints |
-| `cache-clear` | Cache purge | Clears GitHub Actions cache |
+| Type d'événement | Job | Description |
+|:-----------------|:----|:------------|
+| `ping` | Test simple | Confirme que le mécanisme dispatch fonctionne |
+| `health-check` | Vérification santé | Vérifie les endpoints prod/dev |
+| `cache-clear` | Purge du cache | Vide le cache GitHub Actions |
 
-### How to Trigger / Comment Déclencher
+### Comment déclencher
 
-**Option 1: Admin Page (recommended / recommandé)**
-Navigate to: `https://your-domain/admin-dispatch.html`
+**Option 1 : Page admin (recommandé)**
+Naviguer vers : `https://votre-domaine/admin-dispatch.html`
 
-**Option 2: curl**
+**Option 2 : curl**
 ```bash
 curl -X POST \
   -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token YOUR_GITHUB_PAT" \
+  -H "Authorization: token VOTRE_PAT_GITHUB" \
   https://api.github.com/repos/0nde/petrole3/dispatches \
   -d '{
     "event_type": "ping",
     "client_payload": {
-      "message": "Hello from curl!"
+      "message": "Bonjour depuis curl !"
     }
   }'
 ```
 
-**Option 3: GitHub CLI**
+**Option 3 : GitHub CLI**
 ```bash
 gh api repos/0nde/petrole3/dispatches \
   -f event_type=ping \
-  -f client_payload='{"message":"Hello from gh!"}'
+  -f client_payload='{"message":"Bonjour depuis gh !"}'
 ```
 
-### Requirements / Prérequis
+### Prérequis
 
-- A **Personal Access Token (PAT)** with `repo` scope
-- Create at: https://github.com/settings/tokens
+- Un **Personal Access Token (PAT)** avec le scope `repo`
+- Créer à : https://github.com/settings/tokens
 
 ### repository_dispatch vs workflow_dispatch
 
 | | repository_dispatch | workflow_dispatch |
 |:--|:--------------------|:------------------|
-| **Trigger** | API only | GitHub UI + API |
-| **Payload** | Free-form JSON | Typed inputs |
-| **Auth** | Needs PAT | Works with GITHUB_TOKEN |
-| **Use case** | External systems, webhooks | Human operators |
+| **Déclencheur** | API uniquement | UI GitHub + API |
+| **Payload** | JSON libre | Entrées typées |
+| **Auth** | Nécessite un PAT | Fonctionne avec GITHUB_TOKEN |
+| **Cas d'usage** | Systèmes externes, webhooks | Opérateurs humains |
 
 ---
 
-## 10. File Map
+## 10. Carte des fichiers
 
 ```
 .github/
 ├── actions/
 │   ├── setup-frontend/
-│   │   └── action.yml              ← Composite: pnpm + Node.js + install
+│   │   └── action.yml              ← Composite : pnpm + Node.js + install
 │   ├── setup-backend/
-│   │   └── action.yml              ← Composite: Python + pip + install
+│   │   └── action.yml              ← Composite : Python + pip + install
 │   └── deployment-report/
-│       ├── action.yml              ← JavaScript action metadata
-│       ├── index.js                ← JS action: rich deployment summary
-│       ├── package.json            ← Dependencies (@actions/core, @actions/github)
-│       └── node_modules/           ← Installed packages
+│       ├── action.yml              ← Métadonnées de l'action JavaScript
+│       ├── index.js                ← Action JS : résumé de déploiement riche
+│       ├── package.json            ← Dépendances (@actions/core, @actions/github)
+│       └── node_modules/           ← Paquets installés
 ├── workflows/
-│   ├── ci.yml                      ← CI: lint + typecheck + test (reusable)
-│   ├── cd.yml                      ← CD: deploy to production
-│   ├── cd-dev.yml                  ← CD: deploy to development
-│   ├── update-ip-whitelist.yml     ← Manual: update CloudFront IP rules
-│   ├── scheduled-health-check.yml  ← Cron: every 6h health monitoring
-│   ├── smoke-test.yml              ← Reusable: HTTP health check suite
-│   └── repository-dispatch.yml     ← External: API-triggered actions
-└── dependabot.yml                  ← Auto-update dependencies (npm, pip, actions)
+│   ├── ci.yml                      ← CI : lint + typecheck + test (réutilisable)
+│   ├── cd.yml                      ← CD : déploiement en production
+│   ├── cd-dev.yml                  ← CD : déploiement en développement
+│   ├── update-ip-whitelist.yml     ← Manuel : mise à jour des règles IP CloudFront
+│   ├── scheduled-health-check.yml  ← Cron : surveillance santé toutes les 6h
+│   ├── smoke-test.yml              ← Réutilisable : suite de health check HTTP
+│   └── repository-dispatch.yml     ← Externe : actions déclenchées via API
+└── dependabot.yml                  ← Mise à jour auto des dépendances (npm, pip, actions)
 
 apps/web/public/
-└── admin-dispatch.html             ← Admin UI for repository_dispatch
+└── admin-dispatch.html             ← Interface admin pour repository_dispatch
 ```
 
 ---
 
-## 11. Quick Reference
+## 11. Référence Rapide
 
-### All Workflows at a Glance / Tous les Workflows d'un Coup d'Œil
+### Tous les workflows d'un coup d'œil
 
-| Workflow | Triggers | Permissions | Purpose |
-|:---------|:---------|:------------|:--------|
+| Workflow | Déclencheurs | Permissions | Objectif |
+|:---------|:------------|:------------|:---------|
 | ci.yml | push, PR, workflow_call | contents: read | Lint, typecheck, test |
-| cd.yml | push (main), workflow_dispatch | id-token: write, contents: read | Deploy to production |
-| cd-dev.yml | push (!main), workflow_dispatch | id-token: write, contents: read | Deploy to development |
-| update-ip-whitelist.yml | workflow_dispatch | id-token: write, contents: read | Update CloudFront IP rules |
-| scheduled-health-check.yml | schedule, workflow_dispatch | contents: read | Monitor environment health |
-| smoke-test.yml | workflow_call | contents: read | Reusable HTTP health checks |
-| repository-dispatch.yml | repository_dispatch | contents: read, actions: write | External API triggers |
+| cd.yml | push (main), workflow_dispatch | id-token: write, contents: read | Déployer en production |
+| cd-dev.yml | push (!main), workflow_dispatch | id-token: write, contents: read | Déployer en développement |
+| update-ip-whitelist.yml | workflow_dispatch | id-token: write, contents: read | Mettre à jour les règles IP CloudFront |
+| scheduled-health-check.yml | schedule, workflow_dispatch | contents: read | Surveiller la santé des environnements |
+| smoke-test.yml | workflow_call | contents: read | Health checks HTTP réutilisables |
+| repository-dispatch.yml | repository_dispatch | contents: read, actions: write | Déclencheurs API externes |
 
-### Common Tasks / Tâches Courantes
+### Tâches courantes
 
-| Task | How |
-|:-----|:----|
-| Run CI manually | Go to Actions → CI → Run workflow |
-| Deploy to prod | Merge PR to `main` (auto) or Actions → CD → Run workflow |
-| Deploy to dev | Push to any branch except `main` |
-| Update IP whitelist | Actions → Update IP Whitelist → Run workflow |
-| Check health now | Actions → Scheduled Health Check → Run workflow |
-| Trigger via API | Use admin page at `/admin-dispatch.html` |
-| Clear Actions cache | Dispatch `cache-clear` event via admin page |
-| Update action SHAs | Dependabot creates PRs weekly, or check release pages manually |
+| Tâche | Comment |
+|:------|:--------|
+| Lancer le CI manuellement | Aller dans Actions → CI → Run workflow |
+| Déployer en prod | Merger la PR dans `main` (auto) ou Actions → CD → Run workflow |
+| Déployer en dev | Pousser sur n'importe quelle branche sauf `main` |
+| Mettre à jour la whitelist IP | Actions → Update IP Whitelist → Run workflow |
+| Vérifier la santé maintenant | Actions → Scheduled Health Check → Run workflow |
+| Déclencher via API | Utiliser la page admin à `/admin-dispatch.html` |
+| Vider le cache Actions | Dispatcher l'événement `cache-clear` via la page admin |
+| Mettre à jour les SHA des actions | Dependabot crée des PRs chaque semaine, ou vérifier les pages de release manuellement |
 
 ---
 
-*Last updated: March 2026 / Dernière mise à jour : Mars 2026*
-*PetroSim — Pedagogical Geopolitical Oil Simulator*
+*Dernière mise à jour : Mars 2026*
+*PetroSim — Simulateur Géopolitique Pétrolier Pédagogique*

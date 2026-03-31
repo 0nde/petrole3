@@ -1,38 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-PETROSIM — Admin Dispatch Page / Page Admin de Déclenchement
+PETROSIM — Page Admin de Déclenchement
 ═══════════════════════════════════════════════════════════════════════════════
 
-📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
-This standalone HTML page demonstrates how to trigger GitHub Actions workflows
-using the repository_dispatch API. It's a simple, self-contained page that
-doesn't require the React build pipeline.
-
+📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
 Cette page HTML autonome montre comment déclencher des workflows GitHub Actions
 via l'API repository_dispatch. C'est une page simple et autonome qui ne
 nécessite pas le pipeline de build React.
 
-🎯 KEY CONCEPTS / CONCEPTS CLÉS:
-1. GitHub REST API — POST /repos/{owner}/{repo}/dispatches
-2. Personal Access Token (PAT) — Required for authentication
-3. event_type — Routes to the correct workflow job
-4. client_payload — Custom JSON data passed to the workflow
+🎯 CONCEPTS CLÉS :
+1. API REST GitHub — POST /repos/{owner}/{repo}/dispatches
+2. Personal Access Token (PAT) — Requis pour l'authentification
+3. event_type — Route vers le bon job du workflow
+4. client_payload — Données JSON personnalisées passées au workflow
 
-💡 SECURITY / SÉCURITÉ:
-- The PAT is NEVER stored — it's only held in memory during the session
-  Le PAT n'est JAMAIS stocké — il n'est gardé en mémoire que pendant la session
-- The PAT is entered each time the page is loaded
-  Le PAT est saisi à chaque chargement de la page
-- All requests go directly to GitHub API (no proxy)
-  Toutes les requêtes vont directement à l'API GitHub (pas de proxy)
+💡 SÉCURITÉ :
+- Le PAT n'est JAMAIS stocké — il n'est gardé en mémoire que pendant la session
+- Le PAT est saisi à chaque chargement de la page
+- Toutes les requêtes vont directement à l'API GitHub (pas de proxy)
 
-⚠️ REQUIREMENTS / PRÉREQUIS:
-- A GitHub PAT with 'repo' scope
-  Un PAT GitHub avec le scope 'repo'
-- Create one at: https://github.com/settings/tokens
-  Créer un à : https://github.com/settings/tokens
+⚠️ PRÉREQUIS :
+- Un PAT GitHub avec le scope 'repo'
+- Créer un à : https://github.com/settings/tokens
 
 ═══════════════════════════════════════════════════════════════════════════════
 -->
@@ -41,7 +32,7 @@ nécessite pas le pipeline de build React.
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PetroSim — Admin Dispatch</title>
   <style>
-    /* ── Minimal dark theme matching PetroSim aesthetics ── */
+    /* ── Thème sombre minimal correspondant à l'esthétique PetroSim ── */
     :root {
       --bg: #0f172a;
       --surface: #1e293b;
@@ -248,7 +239,6 @@ nécessite pas le pipeline de build React.
       font-size: 0.75rem;
     }
 
-    .bilingual { font-style: italic; opacity: 0.7; }
 
     footer {
       margin-top: 2rem;
@@ -265,106 +255,94 @@ nécessite pas le pipeline de build React.
   <div class="container">
     <header>
       <h1>🛢️ PetroSim — Admin Dispatch</h1>
-      <p>Trigger GitHub Actions workflows via repository_dispatch API</p>
-      <p class="bilingual">Déclencher des workflows GitHub Actions via l'API repository_dispatch</p>
+      <p>Déclencher des workflows GitHub Actions via l'API repository_dispatch</p>
     </header>
 
-    <!-- ── Authentication Card ── -->
+    <!-- ── Carte Authentification ── -->
     <div class="card">
-      <h2>🔑 Authentication / Authentification</h2>
+      <h2>🔑 Authentification</h2>
       <div class="info-box">
-        ℹ️ A <strong>Personal Access Token</strong> with <code>repo</code> scope is required.
-        <br><span class="bilingual">Un token d'accès personnel avec le scope <code>repo</code> est requis.</span>
+        ℹ️ Un <strong>Personal Access Token</strong> avec le scope <code>repo</code> est requis.
         <br><br>
         <a href="https://github.com/settings/tokens/new?description=PetroSim+Dispatch&scopes=repo" target="_blank" rel="noopener">
-          → Create a PAT / Créer un PAT
+          → Créer un PAT
         </a>
       </div>
-      <label for="pat">GitHub PAT (never stored / jamais stocké)</label>
+      <label for="pat">GitHub PAT (jamais stocké)</label>
       <input type="password" id="pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
     </div>
 
-    <!-- ── Dispatch Card ── -->
+    <!-- ── Carte Dispatch ── -->
     <div class="card">
-      <h2>🚀 Dispatch Event / Événement Dispatch</h2>
+      <h2>🚀 Événement Dispatch</h2>
 
-      <label>Event Type / Type d'événement</label>
+      <label>Type d'événement</label>
       <div class="actions" id="event-types">
         <button class="action-btn selected" data-type="ping" onclick="selectType(this)">
           🏓 Ping
         </button>
         <button class="action-btn" data-type="health-check" onclick="selectType(this)">
-          🏥 Health Check
+          🏥 Vérification Santé
         </button>
         <button class="action-btn" data-type="cache-clear" onclick="selectType(this)">
-          🧹 Cache Clear
+          🧹 Vider Cache
         </button>
       </div>
 
-      <label for="payload">Client Payload (JSON)</label>
-      <textarea id="payload">{"message": "Hello from PetroSim admin page!"}</textarea>
+      <label for="payload">Payload client (JSON)</label>
+      <textarea id="payload">{"message": "Bonjour depuis la page admin PetroSim !"}</textarea>
 
       <div style="display: flex; gap: 0.5rem; align-items: center;">
         <button class="btn btn-primary" id="dispatch-btn" onclick="dispatch()">
-          🚀 Send Dispatch
+          🚀 Envoyer
         </button>
         <button class="btn btn-secondary" onclick="clearLog()">
-          Clear Log
+          Vider le journal
         </button>
       </div>
     </div>
 
-    <!-- ── Log Card ── -->
+    <!-- ── Carte Journal ── -->
     <div class="card">
-      <h2>📋 Event Log / Journal</h2>
+      <h2>📋 Journal des événements</h2>
       <div id="log">
-        <div class="log-entry log-info">Ready. Enter your PAT and select an event type.</div>
-        <div class="log-entry log-info bilingual">Prêt. Entrez votre PAT et sélectionnez un type d'événement.</div>
+        <div class="log-entry log-info">Prêt. Entrez votre PAT et sélectionnez un type d'événement.</div>
       </div>
     </div>
 
-    <!-- ── Documentation Card ── -->
+    <!-- ── Carte Documentation ── -->
     <div class="card">
-      <h2>📚 How it works / Comment ça marche</h2>
+      <h2>📚 Comment ça marche</h2>
       <div class="info-box">
-        <strong>1.</strong> This page calls the GitHub REST API:<br>
+        <strong>1.</strong> Cette page appelle l'API REST GitHub :<br>
         <code>POST /repos/0nde/petrole3/dispatches</code><br><br>
-        <strong>2.</strong> GitHub triggers the <code>repository-dispatch.yml</code> workflow<br><br>
-        <strong>3.</strong> The workflow routes to the correct job based on <code>event_type</code><br><br>
-        <strong>4.</strong> The job receives your <code>client_payload</code> as input data<br><br>
-        <span class="bilingual">
-          1. Cette page appelle l'API REST GitHub<br>
-          2. GitHub déclenche le workflow repository-dispatch.yml<br>
-          3. Le workflow route vers le bon job selon event_type<br>
-          4. Le job reçoit votre client_payload comme données d'entrée
-        </span>
+        <strong>2.</strong> GitHub déclenche le workflow <code>repository-dispatch.yml</code><br><br>
+        <strong>3.</strong> Le workflow route vers le bon job selon <code>event_type</code><br><br>
+        <strong>4.</strong> Le job reçoit votre <code>client_payload</code> comme données d'entrée
       </div>
       <div class="info-box">
-        <strong>Equivalent curl command / Commande curl équivalente:</strong><br>
+        <strong>Commande curl équivalente :</strong><br>
         <code id="curl-preview" style="display:block;margin-top:0.5rem;white-space:pre-wrap;font-size:0.7rem;">curl -X POST \
   -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token YOUR_PAT" \
+  -H "Authorization: token VOTRE_PAT" \
   https://api.github.com/repos/0nde/petrole3/dispatches \
-  -d '{"event_type":"ping","client_payload":{"message":"Hello!"}}'</code>
+  -d '{"event_type":"ping","client_payload":{"message":"Bonjour !"}}'</code>
       </div>
     </div>
 
     <footer>
-      PetroSim — Pedagogical Geopolitical Oil Simulator<br>
+      PetroSim — Simulateur Géopolitique Pétrolier Pédagogique<br>
       <a href="https://github.com/0nde/petrole3/actions" target="_blank" rel="noopener">
-        View workflow runs on GitHub →
+        Voir les exécutions de workflows sur GitHub →
       </a>
     </footer>
   </div>
 
   <script>
     // ═══════════════════════════════════════════════════════════════════════
-    // DISPATCH LOGIC
+    // LOGIQUE DE DISPATCH
     // ═══════════════════════════════════════════════════════════════════════
-    // 📖 This JavaScript handles the UI interactions and API calls.
-    //    It demonstrates the GitHub REST API for repository_dispatch.
-    //
-    // Ce JavaScript gère les interactions UI et les appels API.
+    // 📖 Ce JavaScript gère les interactions UI et les appels API.
     // Il démontre l'API REST GitHub pour repository_dispatch.
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -374,15 +352,14 @@ nécessite pas le pipeline de build React.
 
     let selectedType = "ping";
 
-    // Payloads templates for each event type
+    // Templates de payload pour chaque type d'événement
     const PAYLOAD_TEMPLATES = {
-      "ping": '{"message": "Hello from PetroSim admin page!"}',
+      "ping": '{"message": "Bonjour depuis la page admin PetroSim !"}',
       "health-check": '{"env": "all"}',
-      "cache-clear": '{"reason": "Manual cache purge"}'
+      "cache-clear": '{"reason": "Purge manuelle du cache"}'
     };
 
     /**
-     * Select an event type button and update the payload template.
      * Sélectionner un type d'événement et mettre à jour le template de payload.
      */
     function selectType(btn) {
@@ -394,21 +371,19 @@ nécessite pas le pipeline de build React.
     }
 
     /**
-     * Update the curl command preview.
      * Mettre à jour l'aperçu de la commande curl.
      */
     function updateCurlPreview() {
       const payload = document.getElementById("payload").value;
       const curl = `curl -X POST \\
   -H "Accept: application/vnd.github.v3+json" \\
-  -H "Authorization: token YOUR_PAT" \\
+  -H "Authorization: token VOTRE_PAT" \\
   ${API_URL} \\
   -d '${JSON.stringify({ event_type: selectedType, client_payload: tryParseJSON(payload) })}'`;
       document.getElementById("curl-preview").textContent = curl;
     }
 
     /**
-     * Safely parse JSON, returning empty object on failure.
      * Parser le JSON de manière sûre, retourne un objet vide en cas d'erreur.
      */
     function tryParseJSON(str) {
@@ -417,7 +392,6 @@ nécessite pas le pipeline de build React.
     }
 
     /**
-     * Add a log entry to the event log.
      * Ajouter une entrée au journal d'événements.
      */
     function log(message, level = "info") {
@@ -432,56 +406,55 @@ nécessite pas le pipeline de build React.
 
     function clearLog() {
       document.getElementById("log").innerHTML = "";
-      log("Log cleared / Journal vidé", "info");
+      log("Journal vidé", "info");
     }
 
     /**
-     * Send the repository_dispatch event to GitHub API.
      * Envoyer l'événement repository_dispatch à l'API GitHub.
      *
-     * 📖 API DOCUMENTATION:
+     * 📖 DOCUMENTATION API :
      * POST /repos/{owner}/{repo}/dispatches
-     * - Requires: PAT with 'repo' scope
-     * - Body: { "event_type": "string", "client_payload": {} }
-     * - Returns: 204 No Content on success
-     * - Returns: 404 if repo not found or PAT lacks permissions
-     * - Returns: 422 if payload is invalid
+     * - Requis : PAT avec scope 'repo'
+     * - Body : { "event_type": "string", "client_payload": {} }
+     * - Retourne : 204 No Content en cas de succès
+     * - Retourne : 404 si dépôt non trouvé ou PAT sans permissions
+     * - Retourne : 422 si le payload est invalide
      */
     async function dispatch() {
       const pat = document.getElementById("pat").value.trim();
       const payloadStr = document.getElementById("payload").value.trim();
       const btn = document.getElementById("dispatch-btn");
 
-      // Validate inputs
+      // Valider les entrées
       if (!pat) {
-        log("❌ PAT is required / Le PAT est requis", "error");
+        log("❌ Le PAT est requis", "error");
         return;
       }
 
       if (!pat.startsWith("ghp_") && !pat.startsWith("github_pat_")) {
-        log("⚠️  PAT format looks unusual (expected ghp_ or github_pat_ prefix)", "warning");
+        log("⚠️  Format de PAT inhabituel (préfixe ghp_ ou github_pat_ attendu)", "warning");
       }
 
       let clientPayload;
       try {
         clientPayload = JSON.parse(payloadStr);
       } catch (e) {
-        log(`❌ Invalid JSON payload: ${e.message}`, "error");
+        log(`❌ Payload JSON invalide : ${e.message}`, "error");
         return;
       }
 
-      // Build request body
+      // Construire le corps de la requête
       const body = {
         event_type: selectedType,
         client_payload: clientPayload
       };
 
-      log(`🚀 Dispatching '${selectedType}' to ${REPO_OWNER}/${REPO_NAME}...`, "info");
+      log(`🚀 Envoi de '${selectedType}' à ${REPO_OWNER}/${REPO_NAME}...`, "info");
       log(`   Payload: ${JSON.stringify(clientPayload)}`, "info");
 
-      // Disable button during request
+      // Désactiver le bouton pendant la requête
       btn.disabled = true;
-      btn.textContent = "⏳ Sending...";
+      btn.textContent = "⏳ Envoi en cours...";
 
       try {
         const response = await fetch(API_URL, {
@@ -495,29 +468,29 @@ nécessite pas le pipeline de build React.
         });
 
         if (response.status === 204) {
-          log(`✅ Dispatch successful! (HTTP 204 No Content)`, "success");
-          log(`   → View runs: https://github.com/${REPO_OWNER}/${REPO_NAME}/actions`, "success");
+          log(`✅ Dispatch réussi ! (HTTP 204 No Content)`, "success");
+          log(`   → Voir les exécutions : https://github.com/${REPO_OWNER}/${REPO_NAME}/actions`, "success");
         } else if (response.status === 404) {
-          log(`❌ HTTP 404 — Check your PAT has 'repo' scope`, "error");
+          log(`❌ HTTP 404 — Vérifiez que votre PAT a le scope 'repo'`, "error");
         } else if (response.status === 422) {
           const data = await response.json();
-          log(`❌ HTTP 422 — Invalid request: ${data.message}`, "error");
+          log(`❌ HTTP 422 — Requête invalide : ${data.message}`, "error");
         } else {
           const text = await response.text();
           log(`❌ HTTP ${response.status} — ${text}`, "error");
         }
       } catch (error) {
-        log(`❌ Network error: ${error.message}`, "error");
+        log(`❌ Erreur réseau : ${error.message}`, "error");
       } finally {
         btn.disabled = false;
-        btn.textContent = "🚀 Send Dispatch";
+        btn.textContent = "🚀 Envoyer";
       }
     }
 
-    // Update curl preview when payload changes
+    // Mettre à jour l'aperçu curl quand le payload change
     document.getElementById("payload").addEventListener("input", updateCurlPreview);
 
-    // Initial curl preview
+    // Aperçu curl initial
     updateCurlPreview();
   </script>
 </body>

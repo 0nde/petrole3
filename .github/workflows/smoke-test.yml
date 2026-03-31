@@ -1,122 +1,97 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# REUSABLE WORKFLOW — Smoke Test
+# WORKFLOW RÉUTILISABLE — Smoke Test
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
-# A **reusable workflow** is a complete workflow that other workflows can call
-# using the 'workflow_call' trigger. It runs as a SEPARATE job with its own
-# runner, unlike composite actions which run inside the caller's job.
-#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
 # Un **workflow réutilisable** est un workflow complet que d'autres workflows
 # peuvent appeler via le déclencheur 'workflow_call'. Il s'exécute comme un
 # job SÉPARÉ avec son propre runner, contrairement aux actions composites.
 #
-# 🎯 REUSABLE WORKFLOW vs COMPOSITE ACTION:
-# ┌───────────────────┬─────────────────────────────────────────────────────┐
-# │ Feature           │ Reusable Workflow      │ Composite Action           │
-# ├───────────────────┼────────────────────────┼────────────────────────────┤
-# │ Execution         │ Separate job/runner    │ Inside caller's job        │
-# │ Secrets access    │ Via 'secrets' keyword  │ Via caller's env           │
-# │ Concurrency       │ Own concurrency group  │ Shares caller's           │
-# │ Outputs           │ Via 'outputs' keyword  │ Via step outputs           │
-# │ Max nesting       │ 4 levels deep          │ Unlimited                  │
-# │ Can have jobs     │ Yes (multiple)         │ No (steps only)            │
-# │ File location     │ .github/workflows/     │ .github/actions/<name>/    │
-# └───────────────────┴────────────────────────┴────────────────────────────┘
+# 🎯 WORKFLOW RÉUTILISABLE vs ACTION COMPOSITE :
+# ┌───────────────────┬───────────────────────┬────────────────────────────┐
+# │ Caractéristique    │ Workflow réutilisable  │ Action composite              │
+# ├───────────────────┼───────────────────────┼────────────────────────────┤
+# │ Exécution          │ Job/runner séparé      │ Dans le job de l'appelant    │
+# │ Accès secrets      │ Via mot-clé 'secrets' │ Via env de l'appelant        │
+# │ Concurrence        │ Son propre groupe     │ Partage celui de l'appelant  │
+# │ Sorties            │ Via mot-clé 'outputs' │ Via sorties d'étapes         │
+# │ Imbrication max    │ 4 niveaux             │ Illimité                     │
+# │ Peut avoir des jobs│ Oui (multiples)       │ Non (étapes seulement)       │
+# │ Emplacement        │ .github/workflows/    │ .github/actions/<nom>/       │
+# └───────────────────┴───────────────────────┴────────────────────────────┘
 #
-# 💡 WHEN TO USE REUSABLE WORKFLOWS / QUAND UTILISER:
-# - When you need multiple jobs (e.g., backend + frontend smoke tests)
-#   Quand on a besoin de plusieurs jobs
-# - When the caller needs to wait for the entire suite (needs: smoke-test)
-#   Quand l'appelant doit attendre la suite complète
-# - When secrets are required (reusable workflows have proper secret passing)
-#   Quand des secrets sont nécessaires
-# - When you want full isolation from the caller
-#   Quand on veut une isolation complète de l'appelant
+# 💡 QUAND UTILISER LES WORKFLOWS RÉUTILISABLES :
+# - Quand on a besoin de plusieurs jobs (ex: smoke tests backend + frontend)
+# - Quand l'appelant doit attendre la suite complète (needs: smoke-test)
+# - Quand des secrets sont nécessaires (passage sécurisé des secrets)
+# - Quand on veut une isolation complète de l'appelant
 #
-# 🔒 SECRETS IN REUSABLE WORKFLOWS:
-# Secrets are NOT automatically inherited. Callers must explicitly pass them:
+# 🔒 SECRETS DANS LES WORKFLOWS RÉUTILISABLES :
+# Les secrets ne sont PAS automatiquement hérités. Les appelants doivent les
+# passer explicitement :
 #   uses: ./.github/workflows/smoke-test.yml
 #   secrets:
 #     DOMAIN: ${{ secrets.DOMAIN }}
 #
-# Or use 'secrets: inherit' to pass ALL secrets (convenient but less secure):
-#   uses: ./.github/workflows/smoke-test.yml
-#   secrets: inherit
-#
-# Les secrets ne sont PAS automatiquement hérités. Les appelants doivent les
-# passer explicitement, ou utiliser 'secrets: inherit' pour tout passer.
+# Ou utiliser 'secrets: inherit' pour tout passer (pratique mais moins sécurisé).
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: "Reusable Smoke Test / Smoke Test Réutilisable"
+name: "Smoke Test Réutilisable"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TRIGGER: workflow_call (ONLY trigger for reusable workflows)
+# DÉCLENCHEUR : workflow_call (SEUL déclencheur pour les workflows réutilisables)
 # ─────────────────────────────────────────────────────────────────────────────
-# 📖 EXPLANATION:
-# 'workflow_call' is the ONLY trigger that makes a workflow reusable.
-# You can combine it with other triggers (push, schedule, etc.) to also
-# allow direct execution, but workflow_call is what enables reuse.
-#
-# 'workflow_call' est le SEUL déclencheur qui rend un workflow réutilisable.
+# 📖 'workflow_call' est le SEUL déclencheur qui rend un workflow réutilisable.
 # On peut le combiner avec d'autres déclencheurs pour aussi permettre
 # l'exécution directe.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   workflow_call:
     # ─────────────────────────────────────────────────────────────────────────
-    # INPUTS — Parameters from the calling workflow
+    # ENTRÉES — Paramètres du workflow appelant
     # ─────────────────────────────────────────────────────────────────────────
     inputs:
       environment:
-        description: "Target environment (production or development)"
+        description: "Environnement cible (production ou development)"
         required: true
         type: string
       url:
-        description: "Base URL to test (without https://)"
+        description: "URL de base à tester (sans https://)"
         required: true
         type: string
       accept-403:
-        description: "Whether HTTP 403 counts as success (IP whitelist)"
+        description: "Si HTTP 403 compte comme succès (whitelist IP)"
         required: false
         type: boolean
         default: true
 
     # ─────────────────────────────────────────────────────────────────────────
-    # OUTPUTS — Results available to the calling workflow
+    # SORTIES — Résultats disponibles pour le workflow appelant
     # ─────────────────────────────────────────────────────────────────────────
-    # 📖 EXPLANATION:
-    # Outputs let the caller use results from this workflow.
-    # Example: if: needs.smoke-test.outputs.healthy == 'true'
-    #
-    # Les sorties permettent à l'appelant d'utiliser les résultats.
+    # 📖 Les sorties permettent à l'appelant d'utiliser les résultats.
     # Exemple : if: needs.smoke-test.outputs.healthy == 'true'
     # ─────────────────────────────────────────────────────────────────────────
     outputs:
       backend-healthy:
-        description: "Whether the backend health check passed"
+        description: "Si la vérification de santé du backend a réussi"
         value: ${{ jobs.smoke.outputs.backend-healthy }}
       frontend-healthy:
-        description: "Whether the frontend is reachable"
+        description: "Si le frontend est accessible"
         value: ${{ jobs.smoke.outputs.frontend-healthy }}
       healthy:
-        description: "Overall health status (both services)"
+        description: "Statut de santé global (les deux services)"
         value: ${{ jobs.smoke.outputs.healthy }}
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SECRETS — Required secrets from the caller
+    # SECRETS — Secrets requis de l'appelant
     # ─────────────────────────────────────────────────────────────────────────
-    # 📖 EXPLANATION:
-    # Declaring secrets here documents what the caller must provide.
-    # Even if using 'secrets: inherit', declaring them is good practice
-    # for documentation and type safety.
-    #
-    # Déclarer les secrets ici documente ce que l'appelant doit fournir.
+    # 📖 Déclarer les secrets ici documente ce que l'appelant doit fournir.
+    # Même avec 'secrets: inherit', les déclarer est une bonne pratique.
     # ─────────────────────────────────────────────────────────────────────────
     secrets:
       TARGET_URL:
-        description: "The domain to test (from caller's secrets)"
+        description: "Le domaine à tester (depuis les secrets de l'appelant)"
         required: false
 
 permissions:
@@ -129,7 +104,7 @@ jobs:
     timeout-minutes: 5
 
     # ─────────────────────────────────────────────────────────────────────────
-    # OUTPUTS — Map step outputs to job outputs for the caller
+    # SORTIES — Mapper les sorties des étapes vers les sorties du job
     # ─────────────────────────────────────────────────────────────────────────
     outputs:
       backend-healthy: ${{ steps.backend.outputs.healthy }}
@@ -138,9 +113,9 @@ jobs:
 
     steps:
       # ───────────────────────────────────────────────────────────────────────
-      # STEP 1: Backend Health Check
+      # ÉTAPE 1 : Vérification santé Backend
       # ───────────────────────────────────────────────────────────────────────
-      - name: "🏥 Backend health check — /health"
+      - name: "🏥 Vérification santé backend — /health"
         id: backend
         run: |
           URL="https://${{ inputs.url }}/health"
@@ -166,9 +141,9 @@ jobs:
           echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
 
       # ───────────────────────────────────────────────────────────────────────
-      # STEP 2: Frontend Check
+      # ÉTAPE 2 : Vérification Frontend
       # ───────────────────────────────────────────────────────────────────────
-      - name: "🌐 Frontend reachability check"
+      - name: "🌐 Vérification accessibilité frontend"
         id: frontend
         run: |
           URL="https://${{ inputs.url }}"
@@ -193,9 +168,9 @@ jobs:
           echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
 
       # ───────────────────────────────────────────────────────────────────────
-      # STEP 3: Overall Health Assessment
+      # ÉTAPE 3 : Évaluation santé globale
       # ───────────────────────────────────────────────────────────────────────
-      - name: "📊 Overall health assessment"
+      - name: "📊 Évaluation santé globale"
         id: overall
         run: |
           BE="${{ steps.backend.outputs.healthy }}"
@@ -210,9 +185,9 @@ jobs:
           fi
 
       # ───────────────────────────────────────────────────────────────────────
-      # STEP 4: Job Summary
+      # ÉTAPE 4 : Résumé de job
       # ───────────────────────────────────────────────────────────────────────
-      - name: "📋 Generate smoke test report"
+      - name: "📋 Générer le rapport smoke test"
         if: always()
         run: |
           BE_CODE="${{ steps.backend.outputs.http_code }}"
@@ -226,10 +201,10 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
           ## 🔥 Smoke Test — ${{ inputs.environment }}
 
-          | Endpoint | Status | HTTP |
+          | Endpoint | Statut | HTTP |
           |:---------|:-------|:-----|
           | Backend \`/health\` | ${BE_ICON} | ${BE_CODE} |
           | Frontend | ${FE_ICON} | ${FE_CODE} |
 
-          > Tested against \`${{ inputs.url }}\` at $(date -u '+%H:%M:%S UTC')
+          > Testé sur \`${{ inputs.url }}\` at $(date -u '+%H:%M:%S UTC')
           EOF

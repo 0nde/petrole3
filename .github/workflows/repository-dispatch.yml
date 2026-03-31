@@ -1,129 +1,106 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# REPOSITORY DISPATCH WORKFLOW — External Event Trigger
+# WORKFLOW REPOSITORY DISPATCH — Déclencheur d'événements externes
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
-# The **repository_dispatch** trigger allows external systems (webhooks, APIs,
-# web pages, Slack bots, etc.) to trigger workflow runs via the GitHub API.
-# This is the bridge between GitHub Actions and the outside world.
-#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
 # Le déclencheur **repository_dispatch** permet aux systèmes externes
 # (webhooks, APIs, pages web, bots Slack, etc.) de déclencher des workflows
 # via l'API GitHub. C'est le pont entre GitHub Actions et le monde extérieur.
 #
-# 🎯 KEY CONCEPTS / CONCEPTS CLÉS:
-# 1. **repository_dispatch**: Webhook-style trigger via GitHub REST API
-#    Déclencheur de type webhook via l'API REST GitHub
-# 2. **event_type**: Custom string to route to the right workflow
-#    Chaîne personnalisée pour router vers le bon workflow
-# 3. **client_payload**: Custom JSON data sent with the event
-#    Données JSON personnalisées envoyées avec l'événement
-# 4. **PAT (Personal Access Token)**: Required to call the dispatch API
-#    Token d'accès personnel requis pour appeler l'API dispatch
+# 🎯 CONCEPTS CLÉS :
+# 1. **repository_dispatch** : déclencheur de type webhook via l'API REST GitHub
+# 2. **event_type** : chaîne personnalisée pour router vers le bon workflow
+# 3. **client_payload** : données JSON personnalisées envoyées avec l'événement
+# 4. **PAT (Personal Access Token)** : token d'accès personnel requis pour l'API
 #
-# 💡 HOW TO TRIGGER / COMMENT DÉCLENCHER:
-# Via curl:
+# 💡 COMMENT DÉCLENCHER :
+# Via curl :
 #   curl -X POST \
 #     -H "Accept: application/vnd.github.v3+json" \
-#     -H "Authorization: token YOUR_PAT" \
+#     -H "Authorization: token VOTRE_PAT" \
 #     https://api.github.com/repos/0nde/petrole3/dispatches \
 #     -d '{"event_type":"health-check","client_payload":{"env":"prod"}}'
 #
-# Via the PetroSim admin page (see apps/web/src/features/admin/):
-#   The admin page provides a UI to trigger these events safely.
+# Via la page admin PetroSim (voir apps/web/public/admin-dispatch.html) :
+#   La page admin fournit une interface pour déclencher ces événements.
 #
-# 🔒 SECURITY:
-# - Requires a PAT with 'repo' scope (not the default GITHUB_TOKEN)
-#   Nécessite un PAT avec le scope 'repo'
-# - The admin page uses a user-provided PAT (never stored in the app)
-#   La page admin utilise un PAT fourni par l'utilisateur (jamais stocké)
-# - Event types are validated (only known types are processed)
-#   Les types d'événements sont validés
+# 🔒 SÉCURITÉ :
+# - Nécessite un PAT avec le scope 'repo' (pas le GITHUB_TOKEN par défaut)
+# - La page admin utilise un PAT fourni par l'utilisateur (jamais stocké)
+# - Les types d'événements sont validés (seuls les types connus sont traités)
 #
-# ⚠️ WHEN TO USE repository_dispatch vs workflow_dispatch:
-# ┌─────────────────────┬─────────────────────────────────────────────────┐
-# │ repository_dispatch  │ workflow_dispatch                               │
-# ├─────────────────────┼─────────────────────────────────────────────────┤
-# │ Triggered via API    │ Triggered via GitHub UI or API                  │
-# │ Custom JSON payload  │ Typed inputs (string, choice, boolean)          │
-# │ For external systems │ For human operators                             │
-# │ Needs PAT            │ Works with GITHUB_TOKEN                         │
-# │ Any event_type       │ Fixed inputs defined in YAML                    │
-# └─────────────────────┴─────────────────────────────────────────────────┘
+# ⚠️ QUAND UTILISER repository_dispatch vs workflow_dispatch :
+# ┌─────────────────────┬────────────────────────────────────────────┐
+# │ repository_dispatch  │ workflow_dispatch                          │
+# ├─────────────────────┼────────────────────────────────────────────┤
+# │ Déclenché via API    │ Déclenché via UI GitHub ou API              │
+# │ Payload JSON libre   │ Entrées typées (string, choice, boolean)   │
+# │ Pour systèmes ext.   │ Pour opérateurs humains                    │
+# │ Nécessite un PAT     │ Fonctionne avec GITHUB_TOKEN               │
+# │ Tout event_type      │ Entrées fixes définies dans le YAML        │
+# └─────────────────────┴────────────────────────────────────────────┘
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: "Repository Dispatch / Déclencheur Externe"
+name: "Déclencheur Externe (Repository Dispatch)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TRIGGER: repository_dispatch with typed events
+# DÉCLENCHEUR : repository_dispatch avec types d'événements
 # ─────────────────────────────────────────────────────────────────────────────
-# 📖 EXPLANATION:
-# 'types' filters which event_type values trigger this workflow.
-# Without 'types', ALL repository_dispatch events would trigger it.
-#
-# 'types' filtre quels event_type déclenchent ce workflow.
+# 📖 'types' filtre quels event_type déclenchent ce workflow.
 # Sans 'types', TOUS les événements repository_dispatch le déclencheraient.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   repository_dispatch:
     types:
-      - health-check      # Run health checks on demand
-      - cache-clear       # Clear GitHub Actions cache
-      - ping              # Simple connectivity test
+      - health-check      # Vérification de santé à la demande
+      - cache-clear       # Vider le cache GitHub Actions
+      - ping              # Test de connectivité simple
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
-  actions: write  # Needed for cache management
+  actions: write  # Nécessaire pour la gestion du cache
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 1: ROUTE — Determine which action to take based on event_type
+  # JOB 1 : ROUTAGE — Déterminer l'action selon l'event_type
   # ───────────────────────────────────────────────────────────────────────────
-  # 📖 EXPLANATION:
-  # The 'route' job reads the event_type and sets outputs that downstream
-  # jobs use to decide whether to run. This is a common pattern for
-  # repository_dispatch workflows that handle multiple event types.
-  #
-  # Le job 'route' lit l'event_type et définit des sorties que les jobs
+  # 📖 Le job 'route' lit l'event_type et définit des sorties que les jobs
   # en aval utilisent pour décider s'ils doivent s'exécuter.
+  # Pattern courant pour les workflows repository_dispatch multi-événements.
   # ───────────────────────────────────────────────────────────────────────────
   route:
-    name: "🔀 Route event"
+    name: "🔀 Router l'événement"
     runs-on: ubuntu-latest
     outputs:
       event_type: ${{ steps.parse.outputs.event_type }}
       payload: ${{ steps.parse.outputs.payload }}
     steps:
-      - name: "📨 Parse dispatch event"
+      - name: "📨 Analyser l'événement dispatch"
         id: parse
         run: |
           EVENT_TYPE="${{ github.event.action }}"
           echo "event_type=$EVENT_TYPE" >> "$GITHUB_OUTPUT"
 
-          # Log the event for debugging
-          echo "═══════════════════════════════════════════════════"
-          echo "📨 Repository Dispatch Received"
-          echo "═══════════════════════════════════════════════════"
-          echo "Event type: $EVENT_TYPE"
-          echo "Triggered by: ${{ github.actor }}"
-          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          # Logger l'événement pour le débogage
+          echo "═════════════════════════════════════════════════"
+          echo "📨 Repository Dispatch reçu"
+          echo "═════════════════════════════════════════════════"
+          echo "Type d'événement : $EVENT_TYPE"
+          echo "Déclenché par : ${{ github.actor }}"
+          echo "Horodatage : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo ""
-          echo "Client payload:"
+          echo "Payload client :"
           echo '${{ toJSON(github.event.client_payload) }}'
           echo "═══════════════════════════════════════════════════"
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 2: PING — Simple connectivity test
+  # JOB 2 : PING — Test de connectivité simple
   # ───────────────────────────────────────────────────────────────────────────
-  # 📖 PURPOSE / OBJECTIF:
-  # The simplest possible dispatch handler. Just confirms the event
-  # was received and processed. Great for testing the dispatch mechanism.
-  #
-  # Le handler dispatch le plus simple possible. Confirme juste que
+  # 📖 Le handler dispatch le plus simple. Confirme juste que
   # l'événement a été reçu et traité. Idéal pour tester le mécanisme.
   # ───────────────────────────────────────────────────────────────────────────
   ping:
@@ -134,42 +111,41 @@ jobs:
     steps:
       - name: "🏓 Pong!"
         run: |
-          MESSAGE="${{ github.event.client_payload.message || 'No message provided' }}"
+          MESSAGE="${{ github.event.client_payload.message || 'Aucun message fourni' }}"
           SENDER="${{ github.actor }}"
 
           echo "🏓 PONG!"
           echo ""
-          echo "Message: $MESSAGE"
-          echo "From: $SENDER"
-          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Message : $MESSAGE"
+          echo "De : $SENDER"
+          echo "Heure : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
-          # Write to Job Summary
+          # Écrire dans le résumé de job
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          ## 🏓 Ping → Pong!
+          ## 🏓 Ping → Pong !
 
-          | Field | Value |
-          |:------|:------|
+          | Champ | Valeur |
+          |:------|:-------|
           | **Message** | $MESSAGE |
-          | **Sender** | @$SENDER |
-          | **Time** | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |
+          | **Expéditeur** | @$SENDER |
+          | **Heure** | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |
 
-          > This event was triggered via \`repository_dispatch\` API.
           > Cet événement a été déclenché via l'API \`repository_dispatch\`.
           EOF
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 3: HEALTH CHECK — On-demand environment health check
+  # JOB 3 : VÉRIFICATION SANTÉ — À la demande
   # ───────────────────────────────────────────────────────────────────────────
   health-check:
-    name: "🏥 On-demand Health Check"
+    name: "🏥 Vérification santé à la demande"
     needs: route
     if: github.event.action == 'health-check'
     runs-on: ubuntu-latest
     steps:
-      - name: "🏥 Check environments"
+      - name: "🏥 Vérifier les environnements"
         run: |
           TARGET_ENV="${{ github.event.client_payload.env || 'all' }}"
-          echo "Target environment: $TARGET_ENV"
+          echo "Environnement cible : $TARGET_ENV"
 
           check_health() {
             local name=$1
@@ -177,11 +153,11 @@ jobs:
             local code
             code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$url" || echo "000")
             if [ "$code" = "200" ]; then
-              echo "✅ $name: HTTP $code (healthy)"
+              echo "✅ $name : HTTP $code (sain)"
             elif [ "$code" = "403" ]; then
-              echo "⚠️  $name: HTTP $code (IP-restricted, service running)"
+              echo "⚠️  $name : HTTP $code (IP-restrictif, service en cours d'exécution)"
             else
-              echo "❌ $name: HTTP $code (unhealthy)"
+              echo "❌ $name : HTTP $code (non sain)"
             fi
           }
 
@@ -192,58 +168,54 @@ jobs:
           fi
 
           if [ "$TARGET_ENV" = "all" ] || [ "$TARGET_ENV" = "dev" ]; then
-            echo "── Development ──"
+            echo "── Développement ──"
             check_health "Backend" "https://${{ secrets.DEV_DOMAIN }}/health"
             check_health "Frontend" "https://${{ secrets.DEV_DOMAIN }}"
           fi
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 4: CACHE CLEAR — Purge GitHub Actions cache
+  # JOB 4 : VIDER LE CACHE — Purger le cache GitHub Actions
   # ───────────────────────────────────────────────────────────────────────────
-  # 📖 PURPOSE / OBJECTIF:
-  # Clears the GitHub Actions cache. Useful when cached dependencies
-  # are corrupted or stale. Uses the GitHub REST API via gh CLI.
-  #
-  # Vide le cache GitHub Actions. Utile quand les dépendances en cache
+  # 📖 Vide le cache GitHub Actions. Utile quand les dépendances en cache
   # sont corrompues ou obsolètes. Utilise l'API REST via gh CLI.
   # ───────────────────────────────────────────────────────────────────────────
   cache-clear:
-    name: "🧹 Clear Actions Cache"
+    name: "🧹 Vider le cache Actions"
     needs: route
     if: github.event.action == 'cache-clear'
     runs-on: ubuntu-latest
     steps:
-      - name: "🧹 List and clear caches"
+      - name: "🧹 Lister et vider les caches"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "📋 Current caches:"
+          echo "📋 Caches actuels :"
           gh api repos/${{ github.repository }}/actions/caches \
             --jq '.actions_caches[] | "\(.id)\t\(.key)\t\(.size_in_bytes)"' \
-            2>/dev/null || echo "No caches found"
+            2>/dev/null || echo "Aucun cache trouvé"
 
           echo ""
-          echo "🧹 Clearing all caches..."
+          echo "🧹 Vidage de tous les caches..."
 
           CACHE_IDS=$(gh api repos/${{ github.repository }}/actions/caches \
             --jq '.actions_caches[].id' 2>/dev/null || echo "")
 
           if [ -z "$CACHE_IDS" ]; then
-            echo "No caches to clear."
+            echo "Aucun cache à vider."
           else
             for id in $CACHE_IDS; do
-              echo "Deleting cache $id..."
+              echo "Suppression du cache $id..."
               gh api -X DELETE repos/${{ github.repository }}/actions/caches/$id 2>/dev/null || true
             done
-            echo "✅ All caches cleared"
+            echo "✅ Tous les caches vidés"
           fi
 
-          # Job summary
+          # Résumé de job
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          ## 🧹 Cache Cleared
+          ## 🧹 Cache vidé
 
-          All GitHub Actions caches have been purged.
-          Next workflow runs will rebuild caches from scratch.
+          Tous les caches GitHub Actions ont été purgés.
+          Les prochaines exécutions reconstruiront les caches depuis zéro.
 
-          > Triggered by @${{ github.actor }} via repository_dispatch
+          > Déclenché par @${{ github.actor }} via repository_dispatch
           EOF

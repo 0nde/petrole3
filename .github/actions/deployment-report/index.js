@@ -1,45 +1,36 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// JAVASCRIPT ACTION — Deployment Report Generator
+// ACTION JAVASCRIPT — Générateur de rapport de déploiement
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
-// This is the main entry point for the JavaScript action.
-// It uses the @actions/core toolkit to interact with GitHub Actions.
-//
+// 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
 // C'est le point d'entrée principal de l'action JavaScript.
 // Il utilise le toolkit @actions/core pour interagir avec GitHub Actions.
 //
-// 🎯 KEY TOOLKIT MODULES / MODULES CLÉS DU TOOLKIT:
+// 🎯 MODULES CLÉS DU TOOLKIT :
 // ┌──────────────────┬──────────────────────────────────────────────────────┐
-// │ Module           │ Purpose / Utilité                                    │
+// │ Module           │ Utilité                                              │
 // ├──────────────────┼──────────────────────────────────────────────────────┤
-// │ @actions/core    │ Inputs, outputs, logging, summaries, annotations    │
-// │ @actions/github  │ Octokit client for GitHub API (PRs, issues, etc.)   │
-// │ @actions/exec    │ Run shell commands with streaming output            │
-// │ @actions/io      │ File system utilities (cp, mv, rmRF, which)         │
-// │ @actions/cache   │ Cache dependencies between workflow runs            │
+// │ @actions/core    │ Entrées, sorties, logs, résumés, annotations        │
+// │ @actions/github  │ Client Octokit pour l'API GitHub (PRs, issues...)   │
+// │ @actions/exec    │ Exécuter des commandes shell avec sortie streaming  │
+// │ @actions/io      │ Utilitaires fichiers (cp, mv, rmRF, which)          │
+// │ @actions/cache   │ Cache de dépendances entre les exécutions           │
 // └──────────────────┴──────────────────────────────────────────────────────┘
 //
-// 💡 JOB SUMMARIES (GITHUB_STEP_SUMMARY):
-// Job summaries appear in the Actions UI as rich Markdown content.
-// They're perfect for deployment reports, test results, metrics, etc.
+// 💡 RÉSUMÉS DE JOB (GITHUB_STEP_SUMMARY) :
 // Les résumés de job apparaissent dans l'UI Actions comme du Markdown riche.
+// Parfaits pour les rapports de déploiement, résultats de tests, métriques, etc.
 //
-// ⚠️ NOTE ON DEPENDENCIES:
-// @actions/core and @actions/github are pre-installed on GitHub runners.
-// For local development, run: npm install @actions/core @actions/github
-// Ces modules sont pré-installés sur les runners GitHub.
+// ⚠️ NOTE SUR LES DÉPENDANCES :
+// @actions/core et @actions/github sont pré-installés sur les runners GitHub.
+// Pour le développement local : npm install @actions/core @actions/github
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IMPORTS
 // ─────────────────────────────────────────────────────────────────────────────
-// 📖 EXPLANATION:
-// We use require() instead of import because GitHub Actions currently
-// expects CommonJS modules. The @actions/core module provides all the
-// methods we need to interact with the workflow runner.
-//
+// 📖 EXPLICATION :
 // On utilise require() au lieu de import car GitHub Actions attend
 // actuellement des modules CommonJS.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,17 +38,14 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN FUNCTION
+// FONCTION PRINCIPALE
 // ─────────────────────────────────────────────────────────────────────────────
 async function run() {
   try {
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 1: Read inputs from action.yml
+    // ÉTAPE 1 : Lire les entrées depuis action.yml
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 core.getInput() reads values from the 'with:' section in workflows.
-    //    It automatically handles required/optional and default values.
-    //
-    // core.getInput() lit les valeurs de la section 'with:' des workflows.
+    // 📖 core.getInput() lit les valeurs de la section 'with:' des workflows.
     // Il gère automatiquement les champs requis/optionnels et valeurs par défaut.
     // ─────────────────────────────────────────────────────────────────────────
     const environment = core.getInput("environment", { required: true });
@@ -67,16 +55,14 @@ async function run() {
     const deployDuration = core.getInput("deploy-duration") || "0";
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 2: Gather context from the GitHub event
+    // ÉTAPE 2 : Récupérer le contexte de l'événement GitHub
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 github.context provides metadata about the workflow run:
-    //    - repo: { owner, repo } — repository info
-    //    - sha: Full commit SHA that triggered the run
-    //    - actor: GitHub username who triggered the workflow
-    //    - runId: Unique ID of this workflow run
-    //    - workflow: Name of the workflow file
-    //
-    // github.context fournit les métadonnées sur l'exécution du workflow.
+    // 📖 github.context fournit les métadonnées sur l'exécution du workflow :
+    //    - repo: { owner, repo } — infos du dépôt
+    //    - sha: SHA complet du commit déclencheur
+    //    - actor: Utilisateur GitHub ayant déclenché le workflow
+    //    - runId: ID unique de cette exécution
+    //    - workflow: Nom du fichier workflow
     // ─────────────────────────────────────────────────────────────────────────
     const { context } = github;
     const { owner, repo } = context.repo;
@@ -89,19 +75,19 @@ async function run() {
     const timestamp = new Date().toISOString();
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 3: Determine status indicators
+    // ÉTAPE 3 : Déterminer les indicateurs de statut
     // ─────────────────────────────────────────────────────────────────────────
     const isSuccess = status === "success";
     const statusEmoji = isSuccess ? "✅" : "❌";
-    const statusText = isSuccess ? "SUCCESS / SUCCÈS" : "FAILURE / ÉCHEC";
+    const statusText = isSuccess ? "SUCCÈS" : "ÉCHEC";
     const envEmoji = environment === "production" ? "🔴" : "🟡";
     const envLabel =
       environment === "production"
         ? "Production"
-        : "Development / Développement";
+        : "Développement";
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 4: Format deployment duration
+    // ÉTAPE 4 : Formater la durée du déploiement
     // ─────────────────────────────────────────────────────────────────────────
     const durationSec = parseInt(deployDuration, 10);
     const minutes = Math.floor(durationSec / 60);
@@ -110,34 +96,31 @@ async function run() {
       durationSec > 0 ? `${minutes}m ${seconds}s` : "N/A";
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 5: Build the Markdown report
+    // ÉTAPE 5 : Construire le rapport Markdown
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 Job Summaries use standard GitHub Flavored Markdown (GFM).
-    //    Tables, links, images, code blocks — all supported.
-    //
-    // Les résumés de job utilisent le Markdown GitHub (GFM) standard.
+    // 📖 Les résumés de job utilisent le Markdown GitHub (GFM) standard.
     // Tables, liens, images, blocs de code — tout est supporté.
     // ─────────────────────────────────────────────────────────────────────────
     let report = "";
 
-    // Header
-    report += `## ${statusEmoji} Deployment Report / Rapport de Déploiement\n\n`;
+    // En-tête
+    report += `## ${statusEmoji} Rapport de Déploiement\n\n`;
 
-    // Status table
-    report += `| Property / Propriété | Value / Valeur |\n`;
-    report += `|:---------------------|:---------------|\n`;
-    report += `| **Status** | ${statusEmoji} ${statusText} |\n`;
-    report += `| **Environment / Environnement** | ${envEmoji} ${envLabel} |\n`;
+    // Tableau de statut
+    report += `| Propriété | Valeur |\n`;
+    report += `|:----------|:-------|\n`;
+    report += `| **Statut** | ${statusEmoji} ${statusText} |\n`;
+    report += `| **Environnement** | ${envEmoji} ${envLabel} |\n`;
     report += `| **Commit** | [\`${shortSha}\`](${commitUrl}) |\n`;
-    report += `| **Triggered by / Déclenché par** | @${actor} |\n`;
-    report += `| **Duration / Durée** | ${durationStr} |\n`;
-    report += `| **Timestamp / Horodatage** | ${timestamp} |\n`;
-    report += `| **Workflow Run** | [#${runId}](${runUrl}) |\n`;
+    report += `| **Déclenché par** | @${actor} |\n`;
+    report += `| **Durée** | ${durationStr} |\n`;
+    report += `| **Horodatage** | ${timestamp} |\n`;
+    report += `| **Exécution Workflow** | [#${runId}](${runUrl}) |\n`;
     report += `\n`;
 
-    // URLs section (only if provided)
+    // Section URLs (seulement si fournies)
     if (frontendUrl || backendUrl) {
-      report += `### 🌐 Deployed URLs / URLs Déployées\n\n`;
+      report += `### 🌐 URLs Déployées\n\n`;
       if (frontendUrl) {
         report += `- **Frontend**: [${frontendUrl}](https://${frontendUrl})\n`;
       }
@@ -147,62 +130,50 @@ async function run() {
       report += `\n`;
     }
 
-    // Tips section
+    // Section conseils
     if (isSuccess) {
-      report += `### 💡 Next Steps / Prochaines Étapes\n\n`;
+      report += `### 💡 Prochaines Étapes\n\n`;
       if (environment === "development") {
-        report += `- Test your changes on the dev environment\n`;
-        report += `  Testez vos changements sur l'environnement dev\n`;
-        report += `- When ready, merge to \`main\` to deploy to production\n`;
-        report += `  Quand c'est prêt, mergez sur \`main\` pour déployer en prod\n`;
+        report += `- Testez vos changements sur l'environnement dev\n`;
+        report += `- Quand c'est prêt, mergez sur \`main\` pour déployer en prod\n`;
       } else {
-        report += `- Monitor application logs for any issues\n`;
-        report += `  Surveillez les logs applicatifs pour détecter des problèmes\n`;
-        report += `- Verify key user flows are working\n`;
-        report += `  Vérifiez que les parcours utilisateurs clés fonctionnent\n`;
+        report += `- Surveillez les logs applicatifs pour détecter des problèmes\n`;
+        report += `- Vérifiez que les parcours utilisateurs clés fonctionnent\n`;
       }
     } else {
-      report += `### 🔧 Troubleshooting / Dépannage\n\n`;
-      report += `- Check the [workflow logs](${runUrl}) for error details\n`;
-      report += `  Consultez les [logs du workflow](${runUrl}) pour les détails\n`;
-      report += `- Common causes: build errors, AWS credential issues, timeouts\n`;
-      report += `  Causes fréquentes : erreurs de build, credentials AWS, timeouts\n`;
+      report += `### 🔧 Dépannage\n\n`;
+      report += `- Consultez les [logs du workflow](${runUrl}) pour les détails\n`;
+      report += `- Causes fréquentes : erreurs de build, credentials AWS, timeouts\n`;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 6: Write to Job Summary
+    // ÉTAPE 6 : Écrire dans le résumé de job
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 core.summary writes to $GITHUB_STEP_SUMMARY, which renders as
-    //    rich Markdown in the Actions UI. This is the recommended way to
-    //    display structured information in workflow runs.
-    //
-    // core.summary écrit dans $GITHUB_STEP_SUMMARY, qui s'affiche comme
+    // 📖 core.summary écrit dans $GITHUB_STEP_SUMMARY, qui s'affiche comme
     // du Markdown riche dans l'UI Actions.
     //
-    // 💡 METHODS AVAILABLE ON core.summary:
-    //    .addRaw(text)       — Add raw Markdown
-    //    .addHeading(text,n) — Add heading (h1-h6)
-    //    .addTable(rows)     — Add HTML table
-    //    .addList(items)     — Add bullet list
-    //    .addCodeBlock(code) — Add code block
-    //    .write()            — Flush to file
+    // 💡 MÉTHODES DISPONIBLES sur core.summary :
+    //    .addRaw(text)       — Ajouter du Markdown brut
+    //    .addHeading(text,n) — Ajouter un titre (h1-h6)
+    //    .addTable(rows)     — Ajouter un tableau HTML
+    //    .addList(items)     — Ajouter une liste à puces
+    //    .addCodeBlock(code) — Ajouter un bloc de code
+    //    .write()            — Écrire dans le fichier
     // ─────────────────────────────────────────────────────────────────────────
     await core.summary.addRaw(report).write();
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 7: Set outputs and log
+    // ÉTAPE 7 : Définir les sorties et logger
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 core.setOutput() makes values available to subsequent steps via
-    //    ${{ steps.<id>.outputs.<name> }}
+    // 📖 core.setOutput() rend les valeurs disponibles aux étapes suivantes
+    // via ${{ steps.<id>.outputs.<name> }}
     //
-    // core.setOutput() rend les valeurs disponibles aux étapes suivantes.
-    //
-    // 💡 LOGGING LEVELS:
-    //    core.info()    — Standard info (always visible)
-    //    core.warning() — Yellow warning annotation
-    //    core.error()   — Red error annotation
-    //    core.notice()  — Blue notice annotation
-    //    core.debug()   — Only visible with ACTIONS_STEP_DEBUG=true
+    // 💡 NIVEAUX DE LOG :
+    //    core.info()    — Info standard (toujours visible)
+    //    core.warning() — Annotation jaune d'avertissement
+    //    core.error()   — Annotation rouge d'erreur
+    //    core.notice()  — Annotation bleue d'information
+    //    core.debug()   — Visible uniquement avec ACTIONS_STEP_DEBUG=true
     // ─────────────────────────────────────────────────────────────────────────
     core.setOutput("report-md", report);
 
@@ -218,18 +189,16 @@ async function run() {
     }
   } catch (error) {
     // ─────────────────────────────────────────────────────────────────────────
-    // ERROR HANDLING
+    // GESTION D'ERREUR
     // ─────────────────────────────────────────────────────────────────────────
-    // 📖 core.setFailed() marks the action as failed and sets the error message.
-    //    This is the standard way to report errors in JS actions.
-    //
-    // core.setFailed() marque l'action comme échouée et définit le message d'erreur.
+    // 📖 core.setFailed() marque l'action comme échouée et définit le message.
+    // C'est la manière standard de signaler les erreurs dans les actions JS.
     // ─────────────────────────────────────────────────────────────────────────
     core.setFailed(`Action failed: ${error.message}`);
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ENTRY POINT — Execute the main function
+// POINT D'ENTRÉE — Exécuter la fonction principale
 // ─────────────────────────────────────────────────────────────────────────────
 run();

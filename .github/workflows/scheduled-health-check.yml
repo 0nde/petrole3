@@ -1,88 +1,71 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# SCHEDULED WORKFLOW — Automated Health Check
+# WORKFLOW PLANIFIÉ — Vérification de santé automatique
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# 📚 PEDAGOGICAL OVERVIEW / VUE D'ENSEMBLE PÉDAGOGIQUE:
-# This workflow demonstrates the **schedule** trigger using cron syntax.
-# It runs automatically at fixed intervals without any human intervention,
-# monitoring the health of both production and dev environments.
-#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
 # Ce workflow démontre le déclencheur **schedule** via la syntaxe cron.
 # Il s'exécute automatiquement à intervalles fixes sans intervention humaine,
 # surveillant la santé des environnements production et dev.
 #
-# 🎯 KEY CONCEPTS / CONCEPTS CLÉS:
-# 1. **Schedule trigger (cron)**: Time-based workflow execution
-#    Déclencheur planifié (cron) : exécution basée sur le temps
-# 2. **Cron syntax**: Standard Unix format (minute hour day month weekday)
-#    Syntaxe cron : format Unix standard (minute heure jour mois jour_semaine)
-# 3. **Matrix strategy for environments**: Test multiple targets in parallel
-#    Stratégie matricielle : tester plusieurs cibles en parallèle
-# 4. **Reusable workflow call**: Uses smoke-test.yml (DRY principle)
-#    Appel de workflow réutilisable : utilise smoke-test.yml (principe DRY)
+# 🎯 CONCEPTS CLÉS :
+# 1. **Déclencheur planifié (cron)** : exécution basée sur le temps
+# 2. **Syntaxe cron** : format Unix standard (minute heure jour mois jour_semaine)
+# 3. **Stratégie matricielle** : tester plusieurs cibles en parallèle
+# 4. **Appel de workflow réutilisable** : principe DRY
 #
-# 💡 CRON SYNTAX EXPLAINED / SYNTAXE CRON EXPLIQUÉE:
+# 💡 SYNTAXE CRON EXPLIQUÉE :
 # ┌───────────── minute (0–59)
-# │ ┌───────────── hour (0–23, UTC)
-# │ │ ┌───────────── day of month (1–31)
-# │ │ │ ┌───────────── month (1–12)
-# │ │ │ │ ┌───────────── day of week (0–6, Sunday=0)
+# │ ┌───────────── heure (0–23, UTC)
+# │ │ ┌───────────── jour du mois (1–31)
+# │ │ │ ┌───────────── mois (1–12)
+# │ │ │ │ ┌───────────── jour de la semaine (0–6, dimanche=0)
 # │ │ │ │ │
 # * * * * *
 #
-# EXAMPLES / EXEMPLES:
-# '0 8 * * *'    → Every day at 08:00 UTC / Chaque jour à 08:00 UTC
-# '0 */6 * * *'  → Every 6 hours / Toutes les 6 heures
-# '0 8 * * 1-5'  → Weekdays at 08:00 UTC / Jours ouvrés à 08:00 UTC
-# '30 4 1 * *'   → 1st of each month at 04:30 UTC
+# EXEMPLES :
+# '0 8 * * *'    → Chaque jour à 08:00 UTC
+# '0 */6 * * *'  → Toutes les 6 heures
+# '0 8 * * 1-5'  → Jours ouvrés à 08:00 UTC
+# '30 4 1 * *'   → 1er de chaque mois à 04:30 UTC
 #
-# ⚠️ IMPORTANT NOTES / NOTES IMPORTANTES:
-# - Schedule uses UTC timezone (not local time)
-#   Le schedule utilise le fuseau UTC (pas l'heure locale)
-# - Minimum interval: 5 minutes (GitHub enforces this)
-#   Intervalle minimum : 5 minutes (imposé par GitHub)
-# - Scheduled workflows run on the DEFAULT branch only (main)
-#   Les workflows planifiés s'exécutent uniquement sur la branche par défaut
-# - May be delayed during high load (not guaranteed exact timing)
-#   Peut être retardé en cas de forte charge (timing non garanti exact)
-# - Disabled after 60 days of repo inactivity (re-enable via push)
-#   Désactivé après 60 jours d'inactivité (réactiver via push)
+# ⚠️ NOTES IMPORTANTES :
+# - Le schedule utilise le fuseau UTC (pas l'heure locale)
+# - Intervalle minimum : 5 minutes (imposé par GitHub)
+# - Les workflows planifiés s'exécutent uniquement sur la branche par défaut (main)
+# - Peut être retardé en cas de forte charge (timing non garanti exact)
+# - Désactivé après 60 jours d'inactivité du dépôt (réactiver via push)
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: "Scheduled Health Check / Vérification Santé Planifiée"
+name: "Vérification Santé Planifiée"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TRIGGER: Cron schedule + manual dispatch
+# DÉCLENCHEUR : Cron planifié + déclenchement manuel
 # ─────────────────────────────────────────────────────────────────────────────
 on:
-  # ─────────────────────────────────────────────────────────────────────────
-  # SCHEDULE TRIGGER
-  # ─────────────────────────────────────────────────────────────────────────
-  # 📖 Runs every 6 hours at minute 30 (avoids the top of the hour rush).
-  #    S'exécute toutes les 6 heures à la minute 30.
+  # ───────────────────────────────────────────────────────────────────────
+  # DÉCLENCHEUR PLANIFIÉ
+  # ───────────────────────────────────────────────────────────────────────
+  # 📖 S'exécute toutes les 6 heures à la minute 30 (évite l'embouteillage au début de l'heure).
   #
-  # 💡 WHY NOT EVERY HOUR / POURQUOI PAS CHAQUE HEURE:
-  # - PetroSim is a pedagogical project (low traffic)
-  #   PetroSim est un projet pédagogique (faible trafic)
-  # - 4 checks/day is sufficient for monitoring
-  #   4 vérifications/jour suffisent pour la surveillance
-  # - Saves GitHub Actions minutes (free tier: 2,000 min/month)
-  #   Économise les minutes GitHub Actions (gratuit : 2 000 min/mois)
+  # 💡 POURQUOI PAS CHAQUE HEURE :
+  # - PetroSim est un projet pédagogique (faible trafic)
+  # - 4 vérifications/jour suffisent pour la surveillance
+  # - Économise les minutes GitHub Actions (gratuit : 2 000 min/mois)
   # ─────────────────────────────────────────────────────────────────────────
   schedule:
-    - cron: "30 */6 * * *"  # At minute 30, every 6 hours (00:30, 06:30, 12:30, 18:30 UTC)
+    - cron: "30 */6 * * *"  # À la minute 30, toutes les 6 heures (00:30, 06:30, 12:30, 18:30 UTC)
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # MANUAL TRIGGER (for testing)
-  # ─────────────────────────────────────────────────────────────────────────
-  # 📖 Allows running the health check manually from the GitHub UI.
-  #    Useful for debugging or immediate verification after changes.
+  # ───────────────────────────────────────────────────────────────────────
+  # DÉCLENCHEMENT MANUEL (pour tests)
+  # ───────────────────────────────────────────────────────────────────────
+  # 📖 Permet de lancer la vérification manuellement depuis l'UI GitHub.
+  # Utile pour le débogage ou la vérification immédiate après des changements.
   # ─────────────────────────────────────────────────────────────────────────
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment to check (all/prod/dev)"
+        description: "Environnement à vérifier (all/prod/dev)"
         required: false
         default: "all"
         type: choice
@@ -95,38 +78,31 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PERMISSIONS — Minimal: no repo access needed for HTTP checks
+# PERMISSIONS — Minimales : pas d'accès au dépôt nécessaire pour les vérifications HTTP
 # ─────────────────────────────────────────────────────────────────────────────
 permissions:
   contents: read
 
 jobs:
-  # ───────────────────────────────────────────────────────────────────────────
-  # JOB: HEALTH CHECK
-  # ───────────────────────────────────────────────────────────────────────────
-  # 📖 PURPOSE / OBJECTIF:
-  # Performs HTTP health checks against deployed environments.
-  # Uses a reusable workflow for the actual smoke testing logic.
-  #
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB : VÉRIFICATION DE SANTÉ
+  # ─────────────────────────────────────────────────────────────────────────
+  # 📖 OBJECTIF :
   # Effectue des vérifications HTTP sur les environnements déployés.
   # Utilise un workflow réutilisable pour la logique de smoke test.
   # ───────────────────────────────────────────────────────────────────────────
   health-check:
-    name: "🏥 Health Check (${{ matrix.env_name }})"
+    name: "🏥 Vérification de Santé (${{ matrix.env_name }})"
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # MATRIX: Check multiple environments in parallel
-    # ─────────────────────────────────────────────────────────────────────────
-    # 📖 EXPLANATION:
-    # Matrix creates one job per environment. Both run simultaneously.
-    # If manual dispatch specifies a single env, we still use matrix for consistency.
-    #
-    # La matrice crée un job par environnement. Les deux s'exécutent simultanément.
+    # ───────────────────────────────────────────────────────────────────────
+    # MATRICE : Vérifier plusieurs environnements en parallèle
+    # ───────────────────────────────────────────────────────────────────────
+    # 📖 La matrice crée un job par environnement. Les deux s'exécutent simultanément.
     # ─────────────────────────────────────────────────────────────────────────
     strategy:
-      fail-fast: false  # Check all environments even if one fails
+      fail-fast: false  # Vérifier tous les environnements même si un échoue
       matrix:
         include:
           - env_name: production
@@ -175,16 +151,12 @@ jobs:
           fi
 
       # ───────────────────────────────────────────────────────────────────────
-      # SUMMARY — Generate Job Summary with results
+      # RÉSUMÉ — Générer le résumé de job avec les résultats
       # ───────────────────────────────────────────────────────────────────────
-      # 📖 EXPLANATION:
-      # Writes results to $GITHUB_STEP_SUMMARY for rich display in the UI.
-      # This is the shell equivalent of core.summary in JavaScript actions.
-      #
-      # Écrit les résultats dans $GITHUB_STEP_SUMMARY pour un affichage riche.
+      # 📖 Écrit les résultats dans $GITHUB_STEP_SUMMARY pour un affichage riche.
       # C'est l'équivalent shell de core.summary dans les actions JavaScript.
       # ───────────────────────────────────────────────────────────────────────
-      - name: "📋 Generate health report"
+      - name: "📋 Générer le rapport de santé"
         if: always()
         run: |
           BACKEND_CODE="${{ steps.backend.outputs.http_code }}"
@@ -192,17 +164,17 @@ jobs:
           ENV="${{ matrix.env_name }}"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-          # Determine status emojis
-          if [ "$BACKEND_CODE" = "200" ]; then BE_STATUS="✅ Healthy"; elif [ "$BACKEND_CODE" = "403" ]; then BE_STATUS="⚠️ IP-restricted"; else BE_STATUS="❌ Down ($BACKEND_CODE)"; fi
-          if [ "$FRONTEND_CODE" = "200" ] || [ "$FRONTEND_CODE" = "403" ]; then FE_STATUS="✅ Reachable"; else FE_STATUS="❌ Down ($FRONTEND_CODE)"; fi
+          # Déterminer les emojis de statut
+          if [ "$BACKEND_CODE" = "200" ]; then BE_STATUS="✅ OK"; elif [ "$BACKEND_CODE" = "403" ]; then BE_STATUS="⚠️ IP restreinte"; else BE_STATUS="❌ HS ($BACKEND_CODE)"; fi
+          if [ "$FRONTEND_CODE" = "200" ] || [ "$FRONTEND_CODE" = "403" ]; then FE_STATUS="✅ Accessible"; else FE_STATUS="❌ HS ($FRONTEND_CODE)"; fi
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          ## 🏥 Health Check: ${ENV}
+          ## 🏥 Vérification Santé : ${ENV}
 
-          | Service | Status | HTTP Code |
+          | Service | Statut | Code HTTP |
           |:--------|:-------|:----------|
           | Backend API | ${BE_STATUS} | ${BACKEND_CODE} |
           | Frontend    | ${FE_STATUS} | ${FRONTEND_CODE} |
 
-          _Checked at ${TIMESTAMP}_
+          _Vérifié le ${TIMESTAMP}_
           EOF
