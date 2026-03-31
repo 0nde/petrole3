@@ -33,16 +33,16 @@ name: CI — Lint, Typage & Tests
 # TRIGGER CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 # 📖 EXPLANATION:
-# - 'push' on main: Validates every commit to the main branch
 # - 'pull_request': Runs checks before allowing merge (GitHub branch protection)
 # - 'workflow_call': Enables reuse by cd.yml and cd-dev.yml (avoids duplication)
 #
-# 💡 BEST PRACTICE: Always run CI on PRs to catch issues before merge.
-# This is the foundation of trunk-based development and continuous integration.
+# 💡 WHY NO 'push' ON MAIN:
+# cd.yml already calls this workflow via workflow_call on every push to main.
+# Adding a push trigger here would create two concurrent CI runs → one gets
+# cancelled. Removing it eliminates the conflict while keeping full coverage:
+# PRs → standalone CI | push main → CD calls CI | push feature → CD-dev calls CI.
 # ─────────────────────────────────────────────────────────────────────────────
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_call:  # 🔑 Makes this workflow reusable by other workflows
