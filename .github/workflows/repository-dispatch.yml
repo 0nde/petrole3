@@ -42,7 +42,7 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: "Déclencheur Externe (Repository Dispatch)"
+name: Ops — Déclencheur Externe
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DÉCLENCHEUR : repository_dispatch avec types d'événements

@@ -33,7 +33,7 @@
 # - CIDR notation: https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing
 # ═══════════════════════════════════════════════════════════════════════════
 
-name: Update IP Whitelist
+name: Ops — Whitelist IP
 
 # ───────────────────────────────────────────────────────────────────────────
 # TRIGGER: Manual workflow dispatch only

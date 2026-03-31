@@ -37,7 +37,7 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: "Smoke Test Réutilisable"
+name: QA — Smoke Test Réutilisable
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DÉCLENCHEUR : workflow_call (SEUL déclencheur pour les workflows réutilisables)
