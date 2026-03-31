@@ -50,6 +50,12 @@ def update_annual_baselines(
         key = (r["country_code"], r["indicator"])
         by_key[key] = r
 
+    # Reset the sequence so autoincrement doesn't collide with backbone-seeded explicit IDs
+    conn.execute(text(
+        "SELECT setval('annual_baselines_id_seq', "
+        "COALESCE((SELECT MAX(id) FROM annual_baselines), 0) + 1, false)"
+    ))
+
     inserted = 0
     skipped = 0
 
