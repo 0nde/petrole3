@@ -1,0 +1,210 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORKFLOW RÉUTILISABLE — Smoke Test
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
+# Un **workflow réutilisable** est un workflow complet que d'autres workflows
+# peuvent appeler via le déclencheur 'workflow_call'. Il s'exécute comme un
+# job SÉPARÉ avec son propre runner, contrairement aux actions composites.
+#
+# 🎯 WORKFLOW RÉUTILISABLE vs ACTION COMPOSITE :
+# ┌───────────────────┬───────────────────────┬────────────────────────────┐
+# │ Caractéristique    │ Workflow réutilisable  │ Action composite              │
+# ├───────────────────┼───────────────────────┼────────────────────────────┤
+# │ Exécution          │ Job/runner séparé      │ Dans le job de l'appelant    │
+# │ Accès secrets      │ Via mot-clé 'secrets' │ Via env de l'appelant        │
+# │ Concurrence        │ Son propre groupe     │ Partage celui de l'appelant  │
+# │ Sorties            │ Via mot-clé 'outputs' │ Via sorties d'étapes         │
+# │ Imbrication max    │ 4 niveaux             │ Illimité                     │
+# │ Peut avoir des jobs│ Oui (multiples)       │ Non (étapes seulement)       │
+# │ Emplacement        │ .github/workflows/    │ .github/actions/<nom>/       │
+# └───────────────────┴───────────────────────┴────────────────────────────┘
+#
+# 💡 QUAND UTILISER LES WORKFLOWS RÉUTILISABLES :
+# - Quand on a besoin de plusieurs jobs (ex: smoke tests backend + frontend)
+# - Quand l'appelant doit attendre la suite complète (needs: smoke-test)
+# - Quand des secrets sont nécessaires (passage sécurisé des secrets)
+# - Quand on veut une isolation complète de l'appelant
+#
+# 🔒 SECRETS DANS LES WORKFLOWS RÉUTILISABLES :
+# Les secrets ne sont PAS automatiquement hérités. Les appelants doivent les
+# passer explicitement :
+#   uses: ./.github/workflows/smoke-test.yml
+#   secrets:
+#     DOMAIN: ${{ secrets.DOMAIN }}
+#
+# Ou utiliser 'secrets: inherit' pour tout passer (pratique mais moins sécurisé).
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Smoke Test Réutilisable"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DÉCLENCHEUR : workflow_call (SEUL déclencheur pour les workflows réutilisables)
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 'workflow_call' est le SEUL déclencheur qui rend un workflow réutilisable.
+# On peut le combiner avec d'autres déclencheurs pour aussi permettre
+# l'exécution directe.
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_call:
+    # ─────────────────────────────────────────────────────────────────────────
+    # ENTRÉES — Paramètres du workflow appelant
+    # ─────────────────────────────────────────────────────────────────────────
+    inputs:
+      environment:
+        description: "Environnement cible (production ou development)"
+        required: true
+        type: string
+      url:
+        description: "URL de base à tester (sans https://)"
+        required: true
+        type: string
+      accept-403:
+        description: "Si HTTP 403 compte comme succès (whitelist IP)"
+        required: false
+        type: boolean
+        default: true
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SORTIES — Résultats disponibles pour le workflow appelant
+    # ─────────────────────────────────────────────────────────────────────────
+    # 📖 Les sorties permettent à l'appelant d'utiliser les résultats.
+    # Exemple : if: needs.smoke-test.outputs.healthy == 'true'
+    # ─────────────────────────────────────────────────────────────────────────
+    outputs:
+      backend-healthy:
+        description: "Si la vérification de santé du backend a réussi"
+        value: ${{ jobs.smoke.outputs.backend-healthy }}
+      frontend-healthy:
+        description: "Si le frontend est accessible"
+        value: ${{ jobs.smoke.outputs.frontend-healthy }}
+      healthy:
+        description: "Statut de santé global (les deux services)"
+        value: ${{ jobs.smoke.outputs.healthy }}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECRETS — Secrets requis de l'appelant
+    # ─────────────────────────────────────────────────────────────────────────
+    # 📖 Déclarer les secrets ici documente ce que l'appelant doit fournir.
+    # Même avec 'secrets: inherit', les déclarer est une bonne pratique.
+    # ─────────────────────────────────────────────────────────────────────────
+    secrets:
+      TARGET_URL:
+        description: "Le domaine à tester (depuis les secrets de l'appelant)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: "🔥 Smoke Test — ${{ inputs.environment }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SORTIES — Mapper les sorties des étapes vers les sorties du job
+    # ─────────────────────────────────────────────────────────────────────────
+    outputs:
+      backend-healthy: ${{ steps.backend.outputs.healthy }}
+      frontend-healthy: ${{ steps.frontend.outputs.healthy }}
+      healthy: ${{ steps.overall.outputs.healthy }}
+
+    steps:
+      # ───────────────────────────────────────────────────────────────────────
+      # ÉTAPE 1 : Vérification santé Backend
+      # ───────────────────────────────────────────────────────────────────────
+      - name: "🏥 Vérification santé backend — /health"
+        id: backend
+        run: |
+          URL="https://${{ inputs.url }}/health"
+          echo "Testing: $URL"
+
+          HTTP_CODE=$(curl -s -o /tmp/be-response.txt -w "%{http_code}" \
+            --max-time 30 --retry 3 --retry-delay 5 "$URL" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          HEALTHY="false"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Backend responding (HTTP 200)"
+            HEALTHY="true"
+          elif [ "$HTTP_CODE" = "403" ] && [ "${{ inputs.accept-403 }}" = "true" ]; then
+            echo "⚠️  HTTP 403 — IP whitelist active (service is running)"
+            HEALTHY="true"
+          else
+            echo "❌ Backend unhealthy (HTTP $HTTP_CODE)"
+            cat /tmp/be-response.txt 2>/dev/null || true
+          fi
+
+          echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
+
+      # ───────────────────────────────────────────────────────────────────────
+      # ÉTAPE 2 : Vérification Frontend
+      # ───────────────────────────────────────────────────────────────────────
+      - name: "🌐 Vérification accessibilité frontend"
+        id: frontend
+        run: |
+          URL="https://${{ inputs.url }}"
+          echo "Testing: $URL"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 --retry 3 --retry-delay 5 "$URL" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          HEALTHY="false"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Frontend accessible (HTTP 200)"
+            HEALTHY="true"
+          elif [ "$HTTP_CODE" = "403" ] && [ "${{ inputs.accept-403 }}" = "true" ]; then
+            echo "⚠️  HTTP 403 — IP whitelist active (CloudFront is running)"
+            HEALTHY="true"
+          else
+            echo "❌ Frontend unreachable (HTTP $HTTP_CODE)"
+          fi
+
+          echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
+
+      # ───────────────────────────────────────────────────────────────────────
+      # ÉTAPE 3 : Évaluation santé globale
+      # ───────────────────────────────────────────────────────────────────────
+      - name: "📊 Évaluation santé globale"
+        id: overall
+        run: |
+          BE="${{ steps.backend.outputs.healthy }}"
+          FE="${{ steps.frontend.outputs.healthy }}"
+
+          if [ "$BE" = "true" ] && [ "$FE" = "true" ]; then
+            echo "healthy=true" >> "$GITHUB_OUTPUT"
+            echo "✅ All services healthy for ${{ inputs.environment }}"
+          else
+            echo "healthy=false" >> "$GITHUB_OUTPUT"
+            echo "❌ Some services unhealthy (backend=$BE, frontend=$FE)"
+          fi
+
+      # ───────────────────────────────────────────────────────────────────────
+      # ÉTAPE 4 : Résumé de job
+      # ───────────────────────────────────────────────────────────────────────
+      - name: "📋 Générer le rapport smoke test"
+        if: always()
+        run: |
+          BE_CODE="${{ steps.backend.outputs.http_code }}"
+          FE_CODE="${{ steps.frontend.outputs.http_code }}"
+          BE_OK="${{ steps.backend.outputs.healthy }}"
+          FE_OK="${{ steps.frontend.outputs.healthy }}"
+
+          BE_ICON=$( [ "$BE_OK" = "true" ] && echo "✅" || echo "❌" )
+          FE_ICON=$( [ "$FE_OK" = "true" ] && echo "✅" || echo "❌" )
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## 🔥 Smoke Test — ${{ inputs.environment }}
+
+          | Endpoint | Statut | HTTP |
+          |:---------|:-------|:-----|
+          | Backend \`/health\` | ${BE_ICON} | ${BE_CODE} |
+          | Frontend | ${FE_ICON} | ${FE_CODE} |
+
+          > Testé sur \`${{ inputs.url }}\` at $(date -u '+%H:%M:%S UTC')
+          EOF

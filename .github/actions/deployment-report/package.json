@@ -1,0 +1,15 @@
+{
+  "name": "deployment-report-action",
+  "version": "1.0.0",
+  "description": "GitHub Action: Generate rich deployment reports / Générer des rapports de déploiement riches",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0"
+  },
+  "license": "MIT",
+  "private": true
+}

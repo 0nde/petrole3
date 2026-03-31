@@ -1,0 +1,180 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORKFLOW PLANIFIÉ — Vérification de santé automatique
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
+# Ce workflow démontre le déclencheur **schedule** via la syntaxe cron.
+# Il s'exécute automatiquement à intervalles fixes sans intervention humaine,
+# surveillant la santé des environnements production et dev.
+#
+# 🎯 CONCEPTS CLÉS :
+# 1. **Déclencheur planifié (cron)** : exécution basée sur le temps
+# 2. **Syntaxe cron** : format Unix standard (minute heure jour mois jour_semaine)
+# 3. **Stratégie matricielle** : tester plusieurs cibles en parallèle
+# 4. **Appel de workflow réutilisable** : principe DRY
+#
+# 💡 SYNTAXE CRON EXPLIQUÉE :
+# ┌───────────── minute (0–59)
+# │ ┌───────────── heure (0–23, UTC)
+# │ │ ┌───────────── jour du mois (1–31)
+# │ │ │ ┌───────────── mois (1–12)
+# │ │ │ │ ┌───────────── jour de la semaine (0–6, dimanche=0)
+# │ │ │ │ │
+# * * * * *
+#
+# EXEMPLES :
+# '0 8 * * *'    → Chaque jour à 08:00 UTC
+# '0 */6 * * *'  → Toutes les 6 heures
+# '0 8 * * 1-5'  → Jours ouvrés à 08:00 UTC
+# '30 4 1 * *'   → 1er de chaque mois à 04:30 UTC
+#
+# ⚠️ NOTES IMPORTANTES :
+# - Le schedule utilise le fuseau UTC (pas l'heure locale)
+# - Intervalle minimum : 5 minutes (imposé par GitHub)
+# - Les workflows planifiés s'exécutent uniquement sur la branche par défaut (main)
+# - Peut être retardé en cas de forte charge (timing non garanti exact)
+# - Désactivé après 60 jours d'inactivité du dépôt (réactiver via push)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Vérification Santé Planifiée"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DÉCLENCHEUR : Cron planifié + déclenchement manuel
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  # ───────────────────────────────────────────────────────────────────────
+  # DÉCLENCHEUR PLANIFIÉ
+  # ───────────────────────────────────────────────────────────────────────
+  # 📖 S'exécute toutes les 6 heures à la minute 30 (évite l'embouteillage au début de l'heure).
+  #
+  # 💡 POURQUOI PAS CHAQUE HEURE :
+  # - PetroSim est un projet pédagogique (faible trafic)
+  # - 4 vérifications/jour suffisent pour la surveillance
+  # - Économise les minutes GitHub Actions (gratuit : 2 000 min/mois)
+  # ─────────────────────────────────────────────────────────────────────────
+  schedule:
+    - cron: "30 */6 * * *"  # À la minute 30, toutes les 6 heures (00:30, 06:30, 12:30, 18:30 UTC)
+
+  # ───────────────────────────────────────────────────────────────────────
+  # DÉCLENCHEMENT MANUEL (pour tests)
+  # ───────────────────────────────────────────────────────────────────────
+  # 📖 Permet de lancer la vérification manuellement depuis l'UI GitHub.
+  # Utile pour le débogage ou la vérification immédiate après des changements.
+  # ─────────────────────────────────────────────────────────────────────────
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement à vérifier (all/prod/dev)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - prod
+          - dev
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PERMISSIONS — Minimales : pas d'accès au dépôt nécessaire pour les vérifications HTTP
+# ─────────────────────────────────────────────────────────────────────────────
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB : VÉRIFICATION DE SANTÉ
+  # ─────────────────────────────────────────────────────────────────────────
+  # 📖 OBJECTIF :
+  # Effectue des vérifications HTTP sur les environnements déployés.
+  # Utilise un workflow réutilisable pour la logique de smoke test.
+  # ───────────────────────────────────────────────────────────────────────────
+  health-check:
+    name: "🏥 Vérification de Santé (${{ matrix.env_name }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # ───────────────────────────────────────────────────────────────────────
+    # MATRICE : Vérifier plusieurs environnements en parallèle
+    # ───────────────────────────────────────────────────────────────────────
+    # 📖 La matrice crée un job par environnement. Les deux s'exécutent simultanément.
+    # ─────────────────────────────────────────────────────────────────────────
+    strategy:
+      fail-fast: false  # Vérifier tous les environnements même si un échoue
+      matrix:
+        include:
+          - env_name: production
+            health_url_secret: DOMAIN
+          - env_name: development
+            health_url_secret: DEV_DOMAIN
+
+    steps:
+      - name: "🔍 Check ${{ matrix.env_name }} backend health"
+        id: backend
+        run: |
+          URL="https://${{ secrets[matrix.health_url_secret] }}/health"
+          echo "Checking: $URL"
+
+          HTTP_CODE=$(curl -s -o /tmp/health-response.txt -w "%{http_code}" \
+            --max-time 30 --retry 2 --retry-delay 5 "$URL" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Backend healthy (HTTP $HTTP_CODE)"
+            BODY=$(cat /tmp/health-response.txt)
+            echo "Response: $BODY"
+          elif [ "$HTTP_CODE" = "403" ]; then
+            echo "⚠️  HTTP 403 — IP whitelist active (CloudFront is working)"
+          else
+            echo "❌ Backend unhealthy (HTTP $HTTP_CODE)"
+            cat /tmp/health-response.txt 2>/dev/null || true
+          fi
+
+      - name: "🌐 Check ${{ matrix.env_name }} frontend"
+        id: frontend
+        run: |
+          URL="https://${{ secrets[matrix.health_url_secret] }}"
+          echo "Checking: $URL"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 --retry 2 --retry-delay 5 "$URL" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "403" ]; then
+            echo "✅ Frontend reachable (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Frontend unreachable (HTTP $HTTP_CODE)"
+          fi
+
+      # ───────────────────────────────────────────────────────────────────────
+      # RÉSUMÉ — Générer le résumé de job avec les résultats
+      # ───────────────────────────────────────────────────────────────────────
+      # 📖 Écrit les résultats dans $GITHUB_STEP_SUMMARY pour un affichage riche.
+      # C'est l'équivalent shell de core.summary dans les actions JavaScript.
+      # ───────────────────────────────────────────────────────────────────────
+      - name: "📋 Générer le rapport de santé"
+        if: always()
+        run: |
+          BACKEND_CODE="${{ steps.backend.outputs.http_code }}"
+          FRONTEND_CODE="${{ steps.frontend.outputs.http_code }}"
+          ENV="${{ matrix.env_name }}"
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          # Déterminer les emojis de statut
+          if [ "$BACKEND_CODE" = "200" ]; then BE_STATUS="✅ OK"; elif [ "$BACKEND_CODE" = "403" ]; then BE_STATUS="⚠️ IP restreinte"; else BE_STATUS="❌ HS ($BACKEND_CODE)"; fi
+          if [ "$FRONTEND_CODE" = "200" ] || [ "$FRONTEND_CODE" = "403" ]; then FE_STATUS="✅ Accessible"; else FE_STATUS="❌ HS ($FRONTEND_CODE)"; fi
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## 🏥 Vérification Santé : ${ENV}
+
+          | Service | Statut | Code HTTP |
+          |:--------|:-------|:----------|
+          | Backend API | ${BE_STATUS} | ${BACKEND_CODE} |
+          | Frontend    | ${FE_STATUS} | ${FRONTEND_CODE} |
+
+          _Vérifié le ${TIMESTAMP}_
+          EOF

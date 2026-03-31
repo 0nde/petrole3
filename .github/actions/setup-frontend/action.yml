@@ -1,0 +1,102 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ACTION COMPOSITE — Configuration de l'environnement Frontend
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
+# Une **action composite** regroupe plusieurs étapes en une unité réutilisable.
+# Au lieu de copier-coller les mêmes étapes checkout → pnpm → node → install
+# dans ci.yml, cd.yml et cd-dev.yml, on les définit UNE SEULE FOIS ici.
+#
+# 🎯 CONCEPTS CLÉS :
+# 1. **Actions composites** : actions personnalisées dans votre repo (sans Docker)
+# 2. **Entrées/Sorties** : paramètres passés par le workflow appelant
+# 3. **Principe DRY** : Ne vous répétez pas — définir une fois, utiliser partout
+#
+# 💡 ACTION COMPOSITE vs WORKFLOW RÉUTILISABLE :
+# - Action composite : s'exécute DANS le job appelant (même runner, état partagé)
+# - Workflow réutilisable : s'exécute comme job SÉPARÉ (propre runner, isolé)
+#
+# 🔒 SÉCURITÉ :
+# - Toutes les actions épinglées par SHA (immuable, prévient les attaques)
+# - Aucun secret ici (les secrets restent dans le workflow appelant)
+#
+# 📁 EMPLACEMENT : .github/actions/setup-frontend/action.yml
+# GitHub cherche action.yml dans le répertoire spécifié par 'uses'
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Setup Frontend Environment"
+description: |
+  Configure pnpm, Node.js et installe les dépendances frontend avec cache.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENTRÉES — Paramètres que le workflow appelant peut personnaliser
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLICATION :
+# Les entrées rendent les actions composites flexibles. Les valeurs par défaut
+# garantissent que l'action fonctionne directement, tout en permettant la
+# personnalisation quand nécessaire.
+# ─────────────────────────────────────────────────────────────────────────────
+inputs:
+  node-version:
+    description: "Version de Node.js à installer"
+    required: false
+    default: "22"
+  pnpm-version:
+    description: "Version de pnpm à installer"
+    required: false
+    default: "9"
+  working-directory:
+    description: "Répertoire de l'app frontend"
+    required: false
+    default: "apps/web"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SORTIES — Valeurs que le workflow appelant peut utiliser après exécution
+# ─────────────────────────────────────────────────────────────────────────────
+outputs:
+  node-version:
+    description: "Version de Node.js effectivement installée"
+    value: ${{ steps.setup-node.outputs.node-version }}
+  cache-hit:
+    description: "Si le cache pnpm a été trouvé"
+    value: ${{ steps.setup-node.outputs.cache-hit }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ÉTAPES — Le travail réel effectué par cette action composite
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLICATION :
+# Les actions composites utilisent 'runs.using: composite' et nécessitent 'shell'
+# sur chaque étape. Contrairement aux actions JS, elles peuvent mélanger scripts
+# shell et autres actions.
+#
+# ⚠️ IMPORTANT :
+# - Chaque étape 'run' DOIT spécifier 'shell' (ex: shell: bash)
+# - Utiliser ${{ inputs.xxx }} pour référencer les valeurs d'entrée
+# ─────────────────────────────────────────────────────────────────────────────
+runs:
+  using: "composite"
+  steps:
+    - name: 📦 Setup pnpm
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: 🔧 Setup Node.js ${{ inputs.node-version }}
+      id: setup-node
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "pnpm"
+        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+
+    - name: 📚 Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm install --frozen-lockfile
+
+    - name: ✅ Frontend setup complete
+      shell: bash
+      run: |
+        echo "::notice::Frontend environment ready — Node ${{ inputs.node-version }}, pnpm ${{ inputs.pnpm-version }}"
+        echo "Cache hit: ${{ steps.setup-node.outputs.cache-hit }}"

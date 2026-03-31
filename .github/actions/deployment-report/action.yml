@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ACTION JAVASCRIPT — Générateur de rapport de déploiement
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 VUE D'ENSEMBLE PÉDAGOGIQUE :
+# Une **action JavaScript** exécute du code Node.js directement sur le runner.
+# Contrairement aux actions composites (étapes YAML) ou Docker (conteneurs),
+# les actions JS ont un accès direct au toolkit GitHub Actions pour des
+# interactions riches avec l'API GitHub.
+#
+# 🎯 TROIS TYPES D'ACTIONS PERSONNALISÉES :
+# ┌─────────────┬──────────────────────────────────────────────────────┐
+# │ Type        │ Description                                          │
+# ├─────────────┼──────────────────────────────────────────────────────┤
+# │ Composite   │ Étapes YAML regroupées (setup-frontend ci-dessus)     │
+# │ JavaScript  │ Code Node.js avec toolkit GitHub (CETTE action)       │
+# │ Docker      │ S'exécute dans un conteneur (tout langage, isolé)    │
+# └─────────────┴──────────────────────────────────────────────────────┘
+#
+# 💡 POURQUOI LES ACTIONS JAVASCRIPT :
+# - Accès direct à @actions/core (logs, entrées, sorties, résumés)
+# - Accès direct à @actions/github (API GitHub, client Octokit)
+# - Démarrage plus rapide que les actions Docker (pas de build conteneur)
+# - Sortie riche : résumés de job, annotations, commandes de workflow
+#
+# 🔧 STRUCTURE D'UNE ACTION JS :
+# .github/actions/deployment-report/
+# ├── action.yml     ← Métadonnées de l'action (ce fichier)
+# ├── index.js       ← Logique principale (exécuté par Node.js)
+# └── package.json   ← Dépendances (optionnel)
+#
+# ⚠️ IMPORTANT — BUNDLING :
+# En production, les actions JS devraient être bundlées avec @vercel/ncc
+# pour éviter de commiter node_modules. Ici on garde simple pour des
+# raisons pédagogiques.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Rapport de déploiement"
+description: |
+  Génère un résumé de déploiement riche via les résumés de job GitHub Actions.
+
+inputs:
+  environment:
+    description: "Environnement de déploiement (production/development)"
+    required: true
+  status:
+    description: "Statut du déploiement (success/failure)"
+    required: true
+    default: "success"
+  frontend-url:
+    description: "URL du frontend déployé"
+    required: false
+    default: ""
+  backend-url:
+    description: "URL de la doc API backend"
+    required: false
+    default: ""
+  deploy-duration:
+    description: "Durée totale du déploiement en secondes"
+    required: false
+    default: "0"
+
+outputs:
+  report-md:
+    description: "Rapport Markdown généré"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXÉCUTION — Comment l'action s'exécute
+# ─────────────────────────────────────────────────────────────────────────────
+# 📖 EXPLICATION :
+# 'node24' indique à GitHub d'exécuter index.js avec Node.js 24.
+# Les versions précédentes utilisaient 'node12', 'node16', 'node20'.
+# Toujours utiliser la dernière version supportée.
+# ─────────────────────────────────────────────────────────────────────────────
+runs:
+  using: "node24"
+  main: "index.js"
