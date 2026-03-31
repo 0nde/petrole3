@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  PetroSim — Data Update Pipeline
+  Lambda + Step Functions for automated country data refresh (OWID + EIA → Neon PostgreSQL).
+  Deploy separately from the main app stack (petrosim / petrosim-dev).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────────────────────────────────────
+Parameters:
+  DevSyncDatabaseUrl:
+    Type: String
+    Description: "Neon.tech dev sync connection string (postgresql://...)"
+    NoEcho: true
+  ProdSyncDatabaseUrl:
+    Type: String
+    Description: "Neon.tech prod sync connection string (postgresql://...)"
+    NoEcho: true
+  EiaApiKey:
+    Type: String
+    Description: "EIA API key (free — https://www.eia.gov/opendata/)"
+    NoEcho: true
+    Default: ""
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+    Description: "Deployment environment tag"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBALS
+# ─────────────────────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [x86_64]
+    Timeout: 300        # 5 min per step (EIA paginates, OWID CSV is large)
+    MemorySize: 512
+    Environment:
+      Variables:
+        DEV_SYNC_DATABASE_URL:  !Ref DevSyncDatabaseUrl
+        PROD_SYNC_DATABASE_URL: !Ref ProdSyncDatabaseUrl
+        EIA_API_KEY:            !Ref EiaApiKey
+        DATA_PIPELINE_BUCKET:   !Ref DataPipelineBucket
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESOURCES
+# ─────────────────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── S3 bucket for pipeline reports ─────────────────────────────────────────
+  DataPipelineBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "petrosim-data-pipeline-reports-${Environment}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldReports
+            Status: Enabled
+            ExpirationInDays: 90     # Keep reports 90 days
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ── Lambda function (all 5 pipeline steps in one handler) ──────────────────
+  DataPipelineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "petrosim-data-pipeline-${Environment}"
+      Description: "PetroSim data update pipeline — OWID + EIA → PostgreSQL"
+      # CodeUri points to the data_pipeline package inside the monorepo.
+      # SAM will package it with requirements.txt in the same directory.
+      CodeUri: ../../apps/api/scripts/data_pipeline/
+      Handler: handler.lambda_handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataPipelineBucket
+      Tags:
+        Project: PetroSim
+        Component: DataPipeline
+        Environment: !Ref Environment
+
+  # ── IAM role for Step Functions to invoke Lambda ────────────────────────────
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "petrosim-sfn-data-pipeline-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt DataPipelineFunction.Arn
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                Resource: "*"
+
+  # ── CloudWatch Log Group for Step Functions ─────────────────────────────────
+  DataPipelineStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/states/petrosim-data-pipeline-${Environment}"
+      RetentionInDays: 30
+
+  # ── Step Functions State Machine ────────────────────────────────────────────
+  DataPipelineStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "petrosim-data-pipeline-${Environment}"
+      # ASL definition file — SAM substitutes ${DataPipelineFunctionArn}
+      DefinitionUri: stepfunctions/data-update.asl.json
+      DefinitionSubstitutions:
+        DataPipelineFunctionArn: !GetAtt DataPipelineFunction.Arn
+      Role: !GetAtt StepFunctionsExecutionRole.Arn
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt DataPipelineStateMachineLogGroup.Arn
+        IncludeExecutionData: true
+        Level: ERROR
+      Tags:
+        Project: PetroSim
+        Component: DataPipeline
+        Environment: !Ref Environment
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────────────────────────────────────
+Outputs:
+  DataPipelineFunctionArn:
+    Description: "ARN of the data pipeline Lambda"
+    Value: !GetAtt DataPipelineFunction.Arn
+    Export:
+      Name: !Sub "petrosim-data-pipeline-function-arn-${Environment}"
+
+  DataPipelineStateMachineArn:
+    Description: "ARN of the Step Functions state machine — add to GitHub secret DATA_UPDATE_STATE_MACHINE_ARN"
+    Value: !Ref DataPipelineStateMachine
+    Export:
+      Name: !Sub "petrosim-data-pipeline-sfn-arn-${Environment}"
+
+  DataPipelineBucketName:
+    Description: "S3 bucket for pipeline reports"
+    Value: !Ref DataPipelineBucket

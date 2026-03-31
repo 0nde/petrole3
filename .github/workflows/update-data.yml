@@ -1,0 +1,428 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# UPDATE DATA WORKFLOW — Mise à jour automatique des données pays
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 📚 OBJECTIF :
+# Maintenir les données des fiches pays à jour (production, consommation,
+# capacité de raffinage, mix énergétique, climat) à partir de deux sources :
+#   - OWID Energy Dataset (gratuit, pas de clé API)
+#   - EIA International Energy API v2 (gratuit, clé EIA_API_KEY requise)
+#
+# 🏗️ ARCHITECTURE :
+# Deux modes d'exécution selon la disponibilité de l'infrastructure AWS :
+#
+#   Mode A — AWS Step Functions (recommandé pour la production) :
+#     1. Configure les credentials AWS via OIDC
+#     2. Déploie le SAM template-data-pipeline.yaml (Lambda + Step Functions)
+#     3. Lance l'exécution de la Step Function
+#     4. Attend la completion et récupère le rapport
+#     5. Affiche le rapport dans le Job Summary
+#
+#   Mode B — Direct Python (fallback / développement) :
+#     1. Install Python + dépendances
+#     2. Exécute scripts/run_data_update.py directement dans le runner
+#     3. Affiche le rapport dans le Job Summary
+#
+# 📅 DÉCLENCHEURS :
+#   - Trimestriel automatique : 1er jan / avr / juil / oct à 6h UTC
+#   - Manuel (workflow_dispatch) avec options de configuration
+#
+# 🔒 SECRETS REQUIS :
+#   Existants (déjà dans le projet) :
+#     AWS_ROLE_ARN             — Rôle IAM OIDC
+#     DEV_SYNC_DATABASE_URL    — Neon.tech dev (postgresql://...)
+#     SYNC_DATABASE_URL        — Neon.tech prod (postgresql://...)
+#   Nouveaux à ajouter :
+#     EIA_API_KEY              — Clé API EIA (https://www.eia.gov/opendata/)
+#     DATA_UPDATE_STATE_MACHINE_ARN — ARN Step Function (après 1er déploiement SAM)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: 🔄 Mise à jour des données pays
+
+on:
+  # ── Trimestriel : 1er janvier, 1er avril, 1er juillet, 1er octobre à 6h UTC
+  schedule:
+    - cron: '0 6 1 1,4,7,10 *'
+
+  # ── Manuel avec options
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement cible'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      year:
+        description: 'Année de référence des données (ex: 2023)'
+        required: false
+        default: '2023'
+        type: string
+      dry_run:
+        description: 'Dry run — analyse sans écriture en base'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      update_simulation_values:
+        description: 'Mettre à jour les valeurs simulation (countries table)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      execution_mode:
+        description: 'Mode d'exécution'
+        required: false
+        default: 'direct'
+        type: choice
+        options:
+          - direct          # Python script in runner (no AWS infra needed)
+          - step-functions  # AWS Step Functions (requires prior SAM deploy)
+          - deploy-and-run  # Deploy SAM template then run Step Function
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AWS_REGION: eu-west-3
+  PYTHON_VERSION: '3.12'
+
+concurrency:
+  group: data-update-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false  # Never cancel a running data update
+
+permissions:
+  id-token: write     # OIDC token for AWS
+  contents: write     # Create PR branch if needed
+  pull-requests: write
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1 — Résolution des paramètres
+  # ─────────────────────────────────────────────────────────────────────────────
+  resolve-params:
+    name: 📋 Résoudre les paramètres
+    runs-on: ubuntu-latest
+    outputs:
+      environment:             ${{ steps.params.outputs.environment }}
+      year:                    ${{ steps.params.outputs.year }}
+      dry_run:                 ${{ steps.params.outputs.dry_run }}
+      update_simulation_values:${{ steps.params.outputs.update_simulation_values }}
+      execution_mode:          ${{ steps.params.outputs.execution_mode }}
+    steps:
+      - name: Résoudre les paramètres (schedule vs dispatch)
+        id: params
+        run: |
+          # Defaults for scheduled runs
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          YEAR="${{ github.event.inputs.year || '2023' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'true' }}"
+          UPDATE_SIM="${{ github.event.inputs.update_simulation_values || 'false' }}"
+          MODE="${{ github.event.inputs.execution_mode || 'direct' }}"
+
+          echo "environment=$ENV"               >> "$GITHUB_OUTPUT"
+          echo "year=$YEAR"                     >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN"               >> "$GITHUB_OUTPUT"
+          echo "update_simulation_values=$UPDATE_SIM" >> "$GITHUB_OUTPUT"
+          echo "execution_mode=$MODE"           >> "$GITHUB_OUTPUT"
+
+          echo "### Paramètres résolus" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Paramètre | Valeur |"  >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|"               >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environnement | \`$ENV\` |"   >> "$GITHUB_STEP_SUMMARY"
+          echo "| Année         | $YEAR |"     >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dry Run       | $DRY_RUN |"  >> "$GITHUB_STEP_SUMMARY"
+          echo "| Mode          | $MODE |"     >> "$GITHUB_STEP_SUMMARY"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2A — Mode Direct (Python dans le runner GitHub Actions)
+  # ─────────────────────────────────────────────────────────────────────────────
+  update-direct:
+    name: 🐍 Mise à jour directe (Python)
+    runs-on: ubuntu-latest
+    needs: resolve-params
+    if: needs.resolve-params.outputs.execution_mode == 'direct'
+    environment: ${{ needs.resolve-params.outputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Installer les dépendances
+        working-directory: apps/api
+        run: |
+          pip install --quiet -r requirements.txt
+
+      - name: Lancer le pipeline de mise à jour
+        working-directory: apps/api
+        env:
+          # DB URLs — choisir selon l'environnement
+          DEV_SYNC_DATABASE_URL:  ${{ secrets.DEV_SYNC_DATABASE_URL }}
+          SYNC_DATABASE_URL:      ${{ secrets.SYNC_DATABASE_URL }}
+          EIA_API_KEY:            ${{ secrets.EIA_API_KEY }}
+        run: |
+          DRY_FLAG=""
+          if [ "${{ needs.resolve-params.outputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          else
+            DRY_FLAG="--no-dry-run"
+          fi
+
+          SIM_FLAG=""
+          if [ "${{ needs.resolve-params.outputs.update_simulation_values }}" = "true" ]; then
+            SIM_FLAG="--update-sim"
+          fi
+
+          python -m scripts.run_data_update \
+            --env "${{ needs.resolve-params.outputs.environment }}" \
+            --year "${{ needs.resolve-params.outputs.year }}" \
+            $DRY_FLAG \
+            $SIM_FLAG \
+            --report-file /tmp/data-update-report.md
+
+      - name: Publier le rapport dans le Job Summary
+        if: always()
+        run: |
+          if [ -f /tmp/data-update-report.md ]; then
+            cat /tmp/data-update-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ Rapport non trouvé." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Créer une PR si des changements simulation sont détectés
+        if: |
+          needs.resolve-params.outputs.dry_run == 'false' &&
+          needs.resolve-params.outputs.update_simulation_values == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if countries.json was modified by the pipeline
+          if git diff --quiet data/seed/countries.json; then
+            echo "Pas de changement dans countries.json — aucune PR créée."
+            exit 0
+          fi
+
+          BRANCH="data-update/countries-${{ needs.resolve-params.outputs.year }}-$(date +%Y%m%d)"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add data/seed/countries.json
+          git commit -m "data: mise à jour countries.json depuis EIA/OWID (${{ needs.resolve-params.outputs.year }})"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "🔄 Mise à jour données pays (${{ needs.resolve-params.outputs.year }})" \
+            --body "$(cat /tmp/data-update-report.md)" \
+            --label "data-update"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2B — Déploiement SAM + Step Functions (mode deploy-and-run)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy-pipeline-infra:
+    name: 🏗️ Déployer infrastructure pipeline (SAM)
+    runs-on: ubuntu-latest
+    needs: resolve-params
+    if: needs.resolve-params.outputs.execution_mode == 'deploy-and-run'
+    environment: ${{ needs.resolve-params.outputs.environment }}
+
+    outputs:
+      state_machine_arn: ${{ steps.sam-outputs.outputs.state_machine_arn }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@d78e1a4a9656d3b223e59b80676a797f20093133  # v2
+        with:
+          use-installer: true
+
+      - name: SAM build (data pipeline)
+        working-directory: infra/aws
+        run: |
+          sam build \
+            --template template-data-pipeline.yaml \
+            --build-dir .aws-sam/build-pipeline
+
+      - name: SAM deploy (data pipeline)
+        working-directory: infra/aws
+        run: |
+          ENV="${{ needs.resolve-params.outputs.environment }}"
+          STACK="petrosim-data-pipeline-${ENV}"
+
+          DEV_DB="${{ secrets.DEV_SYNC_DATABASE_URL }}"
+          PROD_DB="${{ secrets.SYNC_DATABASE_URL }}"
+
+          sam deploy \
+            --template .aws-sam/build-pipeline/template.yaml \
+            --stack-name "$STACK" \
+            --region "${{ env.AWS_REGION }}" \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              DevSyncDatabaseUrl="$DEV_DB" \
+              ProdSyncDatabaseUrl="$PROD_DB" \
+              EiaApiKey="${{ secrets.EIA_API_KEY }}" \
+              Environment="$ENV"
+
+      - name: Récupérer l'ARN de la State Machine
+        id: sam-outputs
+        run: |
+          ENV="${{ needs.resolve-params.outputs.environment }}"
+          ARN=$(aws cloudformation describe-stacks \
+            --stack-name "petrosim-data-pipeline-${ENV}" \
+            --query "Stacks[0].Outputs[?OutputKey=='DataPipelineStateMachineArn'].OutputValue" \
+            --output text)
+          echo "state_machine_arn=$ARN" >> "$GITHUB_OUTPUT"
+          echo "✅ State Machine ARN: $ARN"
+          echo ""
+          echo "💡 Ajoutez ce secret GitHub pour accélérer les prochaines exécutions :"
+          echo "   DATA_UPDATE_STATE_MACHINE_ARN = $ARN"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2C — Lancer la Step Function (modes step-functions et deploy-and-run)
+  # ─────────────────────────────────────────────────────────────────────────────
+  run-step-function:
+    name: ⚡ Lancer Step Function
+    runs-on: ubuntu-latest
+    needs: [resolve-params, deploy-pipeline-infra]
+    if: |
+      always() &&
+      (needs.resolve-params.outputs.execution_mode == 'step-functions' ||
+       (needs.resolve-params.outputs.execution_mode == 'deploy-and-run' &&
+        needs.deploy-pipeline-infra.result == 'success'))
+    environment: ${{ needs.resolve-params.outputs.environment }}
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Résoudre l'ARN de la State Machine
+        id: resolve-arn
+        run: |
+          # Priorité : output du job de déploiement > secret GitHub
+          ARN="${{ needs.deploy-pipeline-infra.outputs.state_machine_arn }}"
+          if [ -z "$ARN" ]; then
+            ARN="${{ secrets.DATA_UPDATE_STATE_MACHINE_ARN }}"
+          fi
+          if [ -z "$ARN" ]; then
+            echo "❌ DATA_UPDATE_STATE_MACHINE_ARN non défini."
+            echo "   Lancez d'abord avec execution_mode=deploy-and-run."
+            exit 1
+          fi
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+          echo "ARN résolu : $ARN"
+
+      - name: Démarrer l'exécution Step Function
+        id: start-exec
+        run: |
+          INPUT=$(cat <<EOF
+          {
+            "year": ${{ needs.resolve-params.outputs.year }},
+            "environment": "${{ needs.resolve-params.outputs.environment }}",
+            "dry_run": ${{ needs.resolve-params.outputs.dry_run }},
+            "update_simulation_values": ${{ needs.resolve-params.outputs.update_simulation_values }}
+          }
+          EOF
+          )
+
+          EXEC_ARN=$(aws stepfunctions start-execution \
+            --state-machine-arn "${{ steps.resolve-arn.outputs.arn }}" \
+            --name "github-actions-$(date +%Y%m%d%H%M%S)" \
+            --input "$INPUT" \
+            --query 'executionArn' \
+            --output text)
+
+          echo "execution_arn=$EXEC_ARN" >> "$GITHUB_OUTPUT"
+          echo "▶️ Exécution démarrée : $EXEC_ARN"
+          echo ""
+          echo "🔍 Suivre sur AWS Console :"
+          echo "   https://${{ env.AWS_REGION }}.console.aws.amazon.com/states/home?region=${{ env.AWS_REGION }}#/executions/details/$EXEC_ARN"
+
+      - name: Attendre la fin de l'exécution (max 20 min)
+        id: wait-exec
+        run: |
+          EXEC_ARN="${{ steps.start-exec.outputs.execution_arn }}"
+          MAX_WAIT=1200   # 20 minutes
+          POLL=15         # toutes les 15 secondes
+          elapsed=0
+
+          while [ $elapsed -lt $MAX_WAIT ]; do
+            STATUS=$(aws stepfunctions describe-execution \
+              --execution-arn "$EXEC_ARN" \
+              --query 'status' \
+              --output text)
+
+            echo "  [${elapsed}s] Statut : $STATUS"
+
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "status=succeeded" >> "$GITHUB_OUTPUT"
+              break
+            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "ABORTED" ] || [ "$STATUS" = "TIMED_OUT" ]; then
+              echo "status=failed" >> "$GITHUB_OUTPUT"
+              echo "❌ Step Function terminée avec statut : $STATUS"
+              # Afficher les détails de l'erreur
+              aws stepfunctions describe-execution \
+                --execution-arn "$EXEC_ARN" \
+                --query '[status, stopDate, error, cause]' \
+                --output table
+              exit 1
+            fi
+
+            sleep $POLL
+            elapsed=$((elapsed + POLL))
+          done
+
+          if [ $elapsed -ge $MAX_WAIT ]; then
+            echo "⏰ Timeout — Step Function toujours en cours après ${MAX_WAIT}s."
+            exit 1
+          fi
+
+      - name: Récupérer et afficher le rapport
+        if: steps.wait-exec.outputs.status == 'succeeded'
+        run: |
+          EXEC_ARN="${{ steps.start-exec.outputs.execution_arn }}"
+
+          # Extraire le markdown du rapport depuis l'output de la Step Function
+          aws stepfunctions describe-execution \
+            --execution-arn "$EXEC_ARN" \
+            --query 'output' \
+            --output text | python3 -c "
+          import sys, json
+          raw = sys.stdin.read().strip()
+          try:
+              data = json.loads(raw)
+              md = data.get('report', {}).get('markdown', '')
+              if md:
+                  print(md)
+              else:
+                  print('⚠️ Aucun rapport Markdown dans l output de la Step Function.')
+                  print(json.dumps(data.get('report', {}).get('json_summary', {}), indent=2))
+          except Exception as e:
+              print(f'Impossible de parser l output : {e}')
+              print(raw[:2000])
+          " >> "$GITHUB_STEP_SUMMARY"

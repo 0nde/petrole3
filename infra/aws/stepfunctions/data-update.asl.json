@@ -1,0 +1,175 @@
+{
+  "Comment": "PetroSim — Pipeline de mise à jour automatique des données pays (OWID + EIA → PostgreSQL)",
+  "StartAt": "FetchOWIDData",
+  "States": {
+
+    "FetchOWIDData": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Télécharge le CSV OWID energy (~4 MB, pas de clé API requise).",
+      "Parameters": {
+        "FunctionName": "${DataPipelineFunctionArn}",
+        "Payload": {
+          "step": "fetch_owid",
+          "year.$": "$.year"
+        }
+      },
+      "ResultSelector": {
+        "owid_data.$": "$.Payload.owid_data",
+        "year.$":      "$.Payload.year"
+      },
+      "ResultPath": "$.owid",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "FetchOWIDFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "FetchEIAData"
+    },
+
+    "FetchOWIDFailed": {
+      "Type": "Fail",
+      "Error": "FetchOWIDError",
+      "Cause": "Le téléchargement des données OWID a échoué après 3 tentatives."
+    },
+
+    "FetchEIAData": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Appelle l'API EIA v2 International (clé EIA_API_KEY requise). Si la clé manque, retourne un objet vide sans échouer.",
+      "Parameters": {
+        "FunctionName": "${DataPipelineFunctionArn}",
+        "Payload": {
+          "step": "fetch_eia",
+          "year.$": "$.year"
+        }
+      },
+      "ResultSelector": {
+        "eia_data.$": "$.Payload.eia_data"
+      },
+      "ResultPath": "$.eia",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "SkipEIAData",
+          "ResultPath": "$.eia_error"
+        }
+      ],
+      "Next": "ValidateAndScore"
+    },
+
+    "SkipEIAData": {
+      "Type": "Pass",
+      "Comment": "EIA a échoué — on continue avec OWID uniquement (dégradation gracieuse).",
+      "Result": { "eia_data": {} },
+      "ResultPath": "$.eia",
+      "Next": "ValidateAndScore"
+    },
+
+    "ValidateAndScore": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Croise OWID + EIA et calcule les scores de confiance (badges Very High / High / Medium / Low).",
+      "Parameters": {
+        "FunctionName": "${DataPipelineFunctionArn}",
+        "Payload": {
+          "step": "validate_score",
+          "owid_data.$": "$.owid.owid_data",
+          "eia_data.$":  "$.eia.eia_data",
+          "year.$":      "$.year"
+        }
+      },
+      "ResultSelector": {
+        "validated.$": "$.Payload.validated",
+        "year.$":      "$.Payload.year"
+      },
+      "ResultPath": "$.scored",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2
+        }
+      ],
+      "Next": "UpdateDatabase"
+    },
+
+    "UpdateDatabase": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "UPSERT dans annual_baselines. Met optionnellement à jour la table countries (simulation).",
+      "Parameters": {
+        "FunctionName": "${DataPipelineFunctionArn}",
+        "Payload": {
+          "step":                      "update_db",
+          "validated.$":               "$.scored.validated",
+          "environment.$":             "$.environment",
+          "dry_run.$":                 "$.dry_run",
+          "update_simulation_values.$":"$.update_simulation_values"
+        }
+      },
+      "ResultSelector": {
+        "update_summary.$": "$.Payload.update_summary"
+      },
+      "ResultPath": "$.db",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2
+        }
+      ],
+      "Next": "GenerateReport"
+    },
+
+    "GenerateReport": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Génère le rapport Markdown + JSON. Upload sur S3 si DATA_PIPELINE_BUCKET est défini.",
+      "Parameters": {
+        "FunctionName": "${DataPipelineFunctionArn}",
+        "Payload": {
+          "step":           "generate_report",
+          "validated.$":    "$.scored.validated",
+          "update_summary.$":"$.db.update_summary",
+          "year.$":         "$.year",
+          "environment.$":  "$.environment",
+          "dry_run.$":      "$.dry_run"
+        }
+      },
+      "ResultSelector": {
+        "markdown.$":    "$.Payload.markdown",
+        "json_summary.$":"$.Payload.json_summary",
+        "s3_key.$":      "$.Payload.s3_key"
+      },
+      "ResultPath": "$.report",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2
+        }
+      ],
+      "End": true
+    }
+
+  }
+}

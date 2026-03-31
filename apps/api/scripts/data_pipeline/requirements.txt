@@ -1,0 +1,6 @@
+# Lambda-specific dependencies for the data pipeline function
+# (subset of apps/api/requirements.txt — no FastAPI/Uvicorn/async stack needed)
+httpx==0.28.1
+psycopg2-binary==2.9.11
+sqlalchemy==2.0.48
+boto3==1.38.0
