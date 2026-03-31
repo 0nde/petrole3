@@ -4,7 +4,7 @@
 
 import greatCircle from '@turf/great-circle';
 import { point, lineString } from '@turf/helpers';
-import type { Feature, LineString, Position } from 'geojson';
+import type { Feature, LineString, MultiLineString, Position } from 'geojson';
 
 export interface FlowGeometryOptions {
   /**
@@ -33,7 +33,11 @@ export function calculateFlowGeometry(
   if (waypoints.length === 0) {
     const start = point(origin);
     const end = point(destination);
-    return greatCircle(start, end, { npoints });
+    const result = greatCircle(start, end, { npoints }) as Feature<LineString | MultiLineString>;
+    if (result.geometry.type === 'MultiLineString') {
+      return lineString(result.geometry.coordinates.flat()) as Feature<LineString>;
+    }
+    return result as Feature<LineString>;
   }
   
   // With waypoints, create segments
@@ -41,10 +45,16 @@ export function calculateFlowGeometry(
   const allPoints = [origin, ...waypoints, destination];
   
   for (let i = 0; i < allPoints.length - 1; i++) {
-    const start = point(allPoints[i]);
-    const end = point(allPoints[i + 1]);
+    const p = allPoints[i];
+    const q = allPoints[i + 1];
+    if (!p || !q) continue;
+    const start = point(p);
+    const end = point(q);
     const segment = greatCircle(start, end, { npoints: Math.floor(npoints / allPoints.length) });
-    segments.push(segment.geometry.coordinates);
+    const coords = segment.geometry.type === 'MultiLineString'
+      ? (segment.geometry.coordinates as Position[][]).flat()
+      : (segment.geometry.coordinates as Position[]);
+    segments.push(coords);
   }
   
   // Merge all segments into one continuous line
