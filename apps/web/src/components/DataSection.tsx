@@ -55,7 +55,11 @@ export function DataSection({ titleKey, icon, records }: DataSectionProps) {
                   {formatValue(r.value, r.unit)}
                 </span>
                 <span className="text-[9px] text-petro-500 w-16 text-right shrink-0">{r.unit}</span>
-                <ConfidenceBadge score={r.confidence_score} />
+                <ConfidenceBadge
+                  score={r.confidence_score}
+                  sourceName={r.source_name}
+                  verifiedDate={r.verified_date}
+                />
               </button>
 
               {isExpanded && (
