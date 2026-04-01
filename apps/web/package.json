@@ -17,7 +17,7 @@
     "@tanstack/react-query": "^5.95.2",
     "@turf/great-circle": "^7.3.4",
     "@turf/helpers": "^7.3.4",
-    "maplibre-gl": "^5.21.0",
+    "maplibre-gl": "^5.21.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.2"
