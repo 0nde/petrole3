@@ -128,9 +128,68 @@ dataset underrepresented this shift.
 - USA became a top-5 crude exporter globally (shale revolution).
 - European countries diversified away from Russia toward Middle East, USA, Africa, Caspian.
 
+## Automated Data Pipeline
+
+### Overview
+
+Country-level baseline data (`annual_baselines` table) is refreshed automatically
+via the **GitHub Action `update-data.yml`**, triggered quarterly (Jan / Apr / Jul / Oct
+at 06:00 UTC) or manually via `workflow_dispatch`.
+
+### Sources fetched automatically
+
+| Source | Type | API key required | Indicators |
+|--------|------|-----------------|------------|
+| OWID Energy Dataset | CSV (~4 MB) | No | Energy mix, electricity, CO₂, GDP, population |
+| EIA International API v2 | REST JSON | Yes — `EIA_API_KEY` | Crude production, petroleum consumption, refining capacity (all in Mb/d) |
+
+### Setting up the EIA API key
+
+1. Register for a free key at **https://www.eia.gov/opendata/**
+2. Add it as a GitHub repository secret:
+   - Repository → **Settings → Secrets and variables → Actions**
+   - New secret: `EIA_API_KEY` = `<your key>`
+3. The pipeline will automatically use it. Without the key, only OWID data
+   is fetched (confidence score drops from *Very High* to *High* for
+   production/consumption indicators).
+
+### Confidence scoring
+
+| Badge | Condition |
+|-------|-----------|
+| 🟢 **Very High** | OWID + EIA both available and agree within ±10 % |
+| 🟡 **High** | Single reliable source, or two sources within ±25 % |
+| 🟠 **Medium** | Sources diverge > 25 %, or less authoritative source |
+| 🔴 **Low** | No data found for the reference year |
+
+### Running manually
+
+```bash
+# Dry run (no DB write) — safe to run any time
+cd apps/api
+python -m scripts.run_data_update --env dev --dry-run --year 2023
+
+# Live update against dev database
+python -m scripts.run_data_update --env dev --no-dry-run --year 2023
+
+# Including simulation values (countries table)
+python -m scripts.run_data_update --env dev --no-dry-run --update-sim --year 2023
+```
+
+### GitHub Action secrets required
+
+| Secret | Purpose | Required |
+|--------|---------|----------|
+| `EIA_API_KEY` | EIA International API v2 access | Optional (OWID only without it) |
+| `DEV_SYNC_DATABASE_URL` | Dev Neon.tech PostgreSQL URL | Yes (for `env=dev`) |
+| `SYNC_DATABASE_URL` | Prod Neon.tech PostgreSQL URL | Yes (for `env=prod`) |
+| `DATA_UPDATE_STATE_MACHINE_ARN` | Step Functions ARN (after first SAM deploy) | Only for `execution_mode=step-functions` |
+
 ## Update Schedule
 This dataset should be reviewed annually when the Energy Institute Statistical Review
 is published (typically June). French data from SDES/INSEE is updated in Q1.
+The `annual_baselines` table is refreshed automatically every quarter via the
+`update-data.yml` GitHub Action (see section above).
 
 ## File Manifest
 | File | Records | Description |

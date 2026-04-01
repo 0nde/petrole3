@@ -218,3 +218,65 @@ VITE_API_URL=http://localhost:8000/api/v1
 
 ### Production (GitHub Secrets)
 See `docs/aws-deployment.md` for the 15 GitHub Secrets required.
+
+## Data Update Pipeline
+
+### Run the pipeline manually
+
+```bash
+cd apps/api
+
+# Dry run — safe, no DB write
+python -m scripts.run_data_update --env dev --dry-run --year 2023
+
+# Live update against dev Neon.tech database
+DEV_SYNC_DATABASE_URL="postgresql://..." \
+python -m scripts.run_data_update --env dev --no-dry-run --year 2023
+
+# With EIA data (higher confidence scores)
+DEV_SYNC_DATABASE_URL="postgresql://..." EIA_API_KEY="your_key" \
+python -m scripts.run_data_update --env dev --no-dry-run --year 2023
+
+# Also update countries simulation table
+python -m scripts.run_data_update --env dev --no-dry-run --update-sim --year 2023
+```
+
+### Trigger via GitHub Actions
+
+```bash
+# Dry run on dev
+gh workflow run update-data.yml \
+  --ref feat/auto-data-update \
+  --field environment=dev \
+  --field dry_run=true \
+  --field execution_mode=direct
+
+# Live update on dev
+gh workflow run update-data.yml \
+  --ref feat/auto-data-update \
+  --field environment=dev \
+  --field dry_run=false \
+  --field execution_mode=direct
+```
+
+### Secrets required
+
+| Secret | Description |
+|--------|-------------|
+| `EIA_API_KEY` | Free key from https://www.eia.gov/opendata/ — optional, improves confidence scores |
+| `DEV_SYNC_DATABASE_URL` | Dev Neon.tech sync URL (`postgresql://...`) |
+| `SYNC_DATABASE_URL` | Prod Neon.tech sync URL (`postgresql://...`) |
+| `DATA_UPDATE_STATE_MACHINE_ARN` | ARN after first `deploy-and-run` — only needed for Step Functions mode |
+
+### Troubleshooting
+
+**`UniqueViolation on annual_baselines_pkey`**
+The sequence was out of sync with backbone-seeded rows. Fixed in `update_db.py` —
+`setval('annual_baselines_id_seq', MAX(id)+1)` is called before any INSERT.
+
+**`No database URL for environment 'dev'`**
+Set `DEV_SYNC_DATABASE_URL` env var (or use `--dry-run` which skips DB entirely).
+
+**All badges are High, none Very High**
+`EIA_API_KEY` is not set. Without EIA, only OWID data is available so cross-source
+validation cannot happen. Add the secret to reach Very High confidence.

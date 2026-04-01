@@ -42,9 +42,10 @@
 │  │  .yml         │  │  health-check │  │  dispatch.yml        │  │
 │  │  (réutilisable)│  │  .yml (cron)  │  │  (déclencheur ext.)  │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  update-ip-whitelist.yml (workflow_dispatch)              │   │
-│  └──────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────┐  ┌──────────────────────────────┐ │
+│  │  update-ip-whitelist.yml  │  │  update-data.yml             │ │
+│  │  (workflow_dispatch)      │  │  (schedule + dispatch)       │ │
+│  └──────────────────────────┘  └──────────────────────────────┘ │
 │                                                                  │
 │  ACTIONS PERSONNALISÉES (.github/actions/)                        │
 │  ┌────────────────┐ ┌────────────────┐ ┌─────────────────────┐  │
@@ -72,7 +73,7 @@ PetroSim démontre **6 types de déclencheurs différents** :
 | `pull_request` | ci.yml | À la création/mise à jour de PR |
 | `workflow_call` | ci.yml, smoke-test.yml | Appelé par d'autres workflows |
 | `workflow_dispatch` | cd.yml, cd-dev.yml, update-ip-whitelist.yml, scheduled-health-check.yml | Déclenchement manuel via l'UI GitHub |
-| `schedule` | scheduled-health-check.yml | Exécution automatique basée sur cron |
+| `schedule` | scheduled-health-check.yml, update-data.yml | Exécution automatique basée sur cron |
 | `repository_dispatch` | repository-dispatch.yml | Déclenchement via API externe |
 
 ### Syntaxe Cron
@@ -341,6 +342,7 @@ par défaut** (main).
 | Workflow | Fréquence | Objectif |
 |:---------|:---------|:---------|
 | `scheduled-health-check.yml` | Toutes les 6 heures à :30 | Surveiller la santé prod & dev |
+| `update-data.yml` | Trimestriel (1er jan/avr/juil/oct à 06:00 UTC) | Rafraîchir les données OWID + EIA dans `annual_baselines` |
 
 ### Notes importantes
 
@@ -430,7 +432,8 @@ gh api repos/0nde/petrole3/dispatches \
 │   ├── update-ip-whitelist.yml     ← Manuel : mise à jour des règles IP CloudFront
 │   ├── scheduled-health-check.yml  ← Cron : surveillance santé toutes les 6h
 │   ├── smoke-test.yml              ← Réutilisable : suite de health check HTTP
-│   └── repository-dispatch.yml     ← Externe : actions déclenchées via API
+│   ├── repository-dispatch.yml     ← Externe : actions déclenchées via API
+│   └── update-data.yml             ← Cron/Manuel : mise à jour données OWID+EIA
 └── dependabot.yml                  ← Mise à jour auto des dépendances (npm, pip, actions)
 
 apps/web/public/
@@ -452,6 +455,7 @@ apps/web/public/
 | scheduled-health-check.yml | schedule, workflow_dispatch | contents: read | Surveiller la santé des environnements |
 | smoke-test.yml | workflow_call | contents: read | Health checks HTTP réutilisables |
 | repository-dispatch.yml | repository_dispatch | contents: read, actions: write | Déclencheurs API externes |
+| update-data.yml | schedule (trimestriel), workflow_dispatch | id-token: write, contents: write | Rafraîchir données pays depuis OWID + EIA |
 
 ### Tâches courantes
 
@@ -465,6 +469,8 @@ apps/web/public/
 | Déclencher via API | Utiliser la page admin à `/admin-dispatch.html` |
 | Vider le cache Actions | Dispatcher l'événement `cache-clear` via la page admin |
 | Mettre à jour les SHA des actions | Dependabot crée des PRs chaque semaine, ou vérifier les pages de release manuellement |
+| Mettre à jour les données pays | Actions → 🔄 Mise à jour des données pays → Run workflow |
+| Dry run pipeline données | `python -m scripts.run_data_update --env dev --dry-run` |
 
 ---
 
