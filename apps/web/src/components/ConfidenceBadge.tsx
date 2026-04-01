@@ -16,14 +16,44 @@ const BADGE_DOT: Record<ConfidenceScore, string> = {
   "Hypothesis": "bg-purple-400",
 };
 
-export function ConfidenceBadge({ score }: { score: ConfidenceScore }) {
+interface ConfidenceBadgeProps {
+  score: ConfidenceScore;
+  sourceName?: string | null;
+  verifiedDate?: string | null;
+}
+
+export function ConfidenceBadge({ score, sourceName, verifiedDate }: ConfidenceBadgeProps) {
+  const label = score === "Very High" ? "VH" : score === "Hypothesis" ? "H?" : score[0];
+  const badgeClass = `inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium ${BADGE_STYLES[score]}`;
+  const dot = <span className={`w-1.5 h-1.5 rounded-full ${BADGE_DOT[score]}`} />;
+
+  if (!sourceName && !verifiedDate) {
+    return (
+      <span className={badgeClass} title={score}>
+        {dot}
+        {label}
+      </span>
+    );
+  }
+
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium ${BADGE_STYLES[score]}`}
-      title={score}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${BADGE_DOT[score]}`} />
-      {score === "Very High" ? "VH" : score === "Hypothesis" ? "H?" : score[0]}
+    <span className="relative group/badge inline-flex cursor-default">
+      <span className={badgeClass}>
+        {dot}
+        {label}
+      </span>
+      <span
+        role="tooltip"
+        className="absolute bottom-full right-0 mb-1.5 w-max max-w-[210px] px-2.5 py-2 rounded bg-petro-900 border border-petro-700/60 shadow-xl text-[10px] leading-relaxed invisible group-hover/badge:visible opacity-0 group-hover/badge:opacity-100 transition-opacity duration-150 pointer-events-none z-50"
+      >
+        <span className="block font-semibold text-petro-100">{score}</span>
+        {sourceName && (
+          <span className="block text-petro-300 mt-0.5">{sourceName}</span>
+        )}
+        {verifiedDate && (
+          <span className="block text-petro-500 mt-0.5">{verifiedDate.slice(0, 10)}</span>
+        )}
+      </span>
     </span>
   );
 }

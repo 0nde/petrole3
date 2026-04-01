@@ -42,13 +42,38 @@ describe('ConfidenceBadge', () => {
     expect(container.firstChild).toHaveClass('bg-purple-500/20', 'text-purple-400');
   });
 
-  it('affiche le titre complet au survol', () => {
+  it('affiche le titre complet au survol (sans source)', () => {
     const scores: ConfidenceScore[] = ['Very High', 'High', 'Medium', 'Low', 'Hypothesis'];
     
     scores.forEach(score => {
       const { container } = render(<ConfidenceBadge score={score} />);
       expect(container.firstChild).toHaveAttribute('title', score);
     });
+  });
+
+  it('affiche un tooltip avec source et date quand fournis', () => {
+    render(
+      <ConfidenceBadge
+        score="Very High"
+        sourceName="Our World in Data"
+        verifiedDate="2026-03-31"
+      />
+    );
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Very High');
+    expect(tooltip).toHaveTextContent('Our World in Data');
+    expect(tooltip).toHaveTextContent('2026-03-31');
+  });
+
+  it('affiche le tooltip avec seulement la source si pas de date', () => {
+    render(<ConfidenceBadge score="High" sourceName="EIA International" />);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('EIA International');
+  });
+
+  it("n'affiche pas de tooltip si source et date sont absents", () => {
+    render(<ConfidenceBadge score="Medium" />);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 });
 

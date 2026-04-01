@@ -417,7 +417,13 @@ function InfoCell({ label, value, badge }: { label: string; value: string; badge
     <div className="bg-petro-900/40 rounded px-2.5 py-2">
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-petro-500 mb-0.5">{label}</div>
-        {badge && <ConfidenceBadge score={badge.confidence_score} />}
+        {badge && (
+          <ConfidenceBadge
+            score={badge.confidence_score}
+            sourceName={badge.source_name}
+            verifiedDate={badge.verified_date}
+          />
+        )}
       </div>
       <div className="text-petro-200 font-medium text-xs">{value}</div>
     </div>
