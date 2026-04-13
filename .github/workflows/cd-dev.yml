@@ -38,12 +38,15 @@ name: CD — Déploiement Développement
 # TRIGGER CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 # 📖 EXPLANATION:
-# - 'branches-ignore: [main]': Deploys ALL branches EXCEPT main
+# - 'branches-ignore: [main, dependabot/**]': Deploys feature branches only
 # - 'workflow_dispatch': Manual deployment via GitHub UI
 #
 # 💡 WHY THIS PATTERN:
 # - Feature branches auto-deploy to dev (instant feedback)
 # - Main branch deploys to prod (via cd.yml)
+# - Dependabot branches are EXCLUDED because GitHub blocks secrets and
+#   OIDC tokens for Dependabot-triggered workflows (security restriction).
+#   These branches only need CI checks (lint + tests), not deployment.
 # - Clear separation: dev = feature branches, prod = main
 #
 # 🎯 TYPICAL WORKFLOW:
@@ -55,7 +58,9 @@ name: CD — Déploiement Développement
 # ─────────────────────────────────────────────────────────────────────────────
 on:
   push:
-    branches-ignore: [main]  # All branches except main
+    branches-ignore:
+      - main
+      - 'dependabot/**'  # Dependabot n'a pas accès aux secrets/OIDC (sécurité GitHub)
   workflow_dispatch:
 
 env:
