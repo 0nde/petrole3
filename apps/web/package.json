@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.95.2",
-    "@turf/great-circle": "^7.3.4",
+    "@turf/great-circle": "^7.3.5",
     "@turf/helpers": "^7.3.4",
     "maplibre-gl": "^5.21.0",
     "react": "^19.0.0",
