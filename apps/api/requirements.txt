@@ -5,7 +5,7 @@ pydantic-settings==2.7.1
 sqlalchemy[asyncio]==2.0.48
 asyncpg==0.31.0
 alembic==1.14.1
-polars==1.39.3
+polars==1.40.1
 psycopg2-binary==2.9.11
 python-dotenv==1.2.2
 httpx==0.28.1
